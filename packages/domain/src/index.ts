@@ -128,37 +128,20 @@ export const defaultSettings: BoothSettings = {
 
 export const templates: PhotoTemplate[] = [
   {
-    id: "classic-strip-3",
-    name: "Classic Strip",
-    description: "Tiga foto diulang ke dua kolom agar penuh sesuai frame.",
-    captureCount: 3,
-    width: 3765,
-    height: 5610,
+    id: "collaboration-strip-6",
+    name: "Collaboration Strip",
+    description: "Frame default 6 foto untuk hasil event yang rapi dan penuh.",
+    captureCount: 6,
+    width: 386,
+    height: 574,
     overlayStyle: "provided-frame",
     slots: [
-      { id: "slot-1", photoIndex: 0, x: 221, y: 958, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-2", photoIndex: 0, x: 1937, y: 958, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-3", photoIndex: 1, x: 221, y: 2263, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-4", photoIndex: 1, x: 1937, y: 2263, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-5", photoIndex: 2, x: 221, y: 3567, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-6", photoIndex: 2, x: 1937, y: 3567, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 }
-    ]
-  },
-  {
-    id: "night-booth-4",
-    name: "Night Booth",
-    description: "Empat foto masuk ke enam slot dengan dua pengulangan agar frame tetap penuh.",
-    captureCount: 4,
-    width: 3765,
-    height: 5610,
-    overlayStyle: "provided-frame",
-    slots: [
-      { id: "slot-1", photoIndex: 0, x: 221, y: 958, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-2", photoIndex: 1, x: 1937, y: 958, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-3", photoIndex: 2, x: 221, y: 2263, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-4", photoIndex: 3, x: 1937, y: 2263, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-5", photoIndex: 0, x: 221, y: 3567, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-6", photoIndex: 1, x: 1937, y: 3567, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 }
+      { id: "slot-1", photoIndex: 0, x: 12, y: 54, width: 119, height: 103, rotation: 0, cornerRadius: 4 },
+      { id: "slot-2", photoIndex: 1, x: 157, y: 54, width: 119, height: 103, rotation: 0, cornerRadius: 4 },
+      { id: "slot-3", photoIndex: 2, x: 12, y: 163, width: 119, height: 104, rotation: 0, cornerRadius: 4 },
+      { id: "slot-4", photoIndex: 3, x: 157, y: 163, width: 119, height: 104, rotation: 0, cornerRadius: 4 },
+      { id: "slot-5", photoIndex: 4, x: 12, y: 272, width: 119, height: 104, rotation: 0, cornerRadius: 4 },
+      { id: "slot-6", photoIndex: 5, x: 157, y: 272, width: 119, height: 104, rotation: 0, cornerRadius: 4 }
     ]
   }
 ];

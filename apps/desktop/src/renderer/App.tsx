@@ -195,7 +195,9 @@ export default function App() {
   }
 
   async function startSession() {
-    const nextSession = await window.photobooth.sessions.create({ templateId, filterId });
+    const forcedTemplateId = templates[0].id;
+    setTemplateId(forcedTemplateId);
+    const nextSession = await window.photobooth.sessions.create({ templateId: forcedTemplateId, filterId });
     setSession(nextSession);
     updateSessionCollection(nextSession);
     setCaptureIndex(0);
@@ -204,12 +206,16 @@ export default function App() {
     setQrUrl("");
     setRecipientEmail("");
     setEmailError("");
-    setQueueStatus("Pilih template untuk sesi ini.");
-    setStep(templates.length > 1 ? "template" : "ready");
+    setQueueStatus("Frame default siap dipakai.");
+    setStep("ready");
   }
 
   function beginCapture() {
     if (!session) return;
+    if (!cameraReady && !selectedCameraSourceId.startsWith("gphoto:")) {
+      setQueueStatus("Kamera belum siap. Cek koneksi kamera atau kembali ke layar sebelumnya.");
+      return;
+    }
     setCaptureIndex(0);
     setCountdown(settings.countdownSeconds);
     setQueueStatus(`Ambil ${template.captureCount} foto untuk template ${template.name}.`);
@@ -324,53 +330,13 @@ export default function App() {
         <section className="welcome-layout screen-card">
           <div className="copy-column">
             <p className="eyebrow">EVENT KIOSK</p>
-            <h1>Siap bikin strip foto yang bisa langsung diambil lewat QR?</h1>
-            <p className="body">Offline dulu untuk capture dan render. Begitu koneksi ada, hasilmu otomatis masuk folder Google Drive.</p>
-            <button className="primary-button" onClick={() => void startSession()}>Mulai</button>
+            <h1>Siap bikin strip 6 foto yang langsung bisa dikirim?</h1>
+            <p className="body">Setelah selesai foto, tamu isi email lalu link hasil otomatis dikirim dan tetap tersedia lewat QR.</p>
+            <div className="welcome-actions">
+              <button className="primary-button" onClick={() => void startSession()}>Mulai</button>
+            </div>
           </div>
           <StripShowcase template={template} shots={sampleShots(template.captureCount)} filterCss={filter.cssFilter} />
-        </section>
-      )}
-
-      {step === "template" && session && (
-        <section className="screen-card stack-gap">
-          <div className="section-head">
-            <div>
-              <p className="eyebrow">PILIH TEMPLATE</p>
-              <h2>Pilih gaya strip dulu.</h2>
-            </div>
-            <p className="body small">Setiap template menentukan jumlah foto yang harus diambil.</p>
-          </div>
-          <div className="template-grid">
-            {templates.map((item) => {
-              const selected = item.id === templateId;
-              return (
-                <button key={item.id} className={`template-card${selected ? " selected" : ""}`} onClick={() => setTemplateId(item.id)}>
-                  <StripShowcase template={item} shots={sampleShots(item.captureCount)} filterCss={filter.cssFilter} compact />
-                  <div className="template-meta">
-                    <strong>{item.name}</strong>
-                    <span>{item.captureCount} foto</span>
-                    <p>{item.description}</p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          <div className="action-row">
-            <div className="filter-row">
-              {filters.map((item) => (
-                <button key={item.id} className={`chip-button${filterId === item.id ? " active" : ""}`} onClick={() => setFilterId(item.id)}>
-                  {item.label}
-                </button>
-              ))}
-            </div>
-            <button className="primary-button" onClick={async () => {
-              const updated = await window.photobooth.sessions.updateConfig({ sessionId: session.id, templateId, filterId });
-              setSession(updated);
-              updateSessionCollection(updated);
-              setStep("ready");
-            }}>Pakai template ini</button>
-          </div>
         </section>
       )}
 
@@ -382,15 +348,21 @@ export default function App() {
           <div className="side-panel">
             <p className="eyebrow">KAMERA SIAP</p>
             <h2>Semua sudah masuk frame?</h2>
-            <p className="body small">Template ini butuh {template.captureCount} foto. Kamu bisa retake per foto setelah semuanya selesai diambil.</p>
+            <p className="body small">Frame default memakai {template.captureCount} foto. Kalau kamera belum siap, kamu tetap bisa kembali dan ganti source kamera dari operator.</p>
             <div className="detail-list">
               <div><span>Template</span><strong>{template.name}</strong></div>
               <div><span>Filter</span><strong>{filter.label}</strong></div>
               <div><span>Retake</span><strong>{settings.retakeLimitPerPhoto} kali per foto</strong></div>
             </div>
+            {!cameraReady && !selectedCameraSourceId.startsWith("gphoto:") && (
+              <div className="inline-warning">
+                <strong>Kamera belum aktif.</strong>
+                <span>Cek izin kamera atau buka operator untuk pilih source lain.</span>
+              </div>
+            )}
             <div className="dual-actions">
-              <button className="secondary-button" onClick={() => setStep("template")}>Kembali</button>
-              <button className="primary-button" onClick={beginCapture}>Mulai foto</button>
+              <button className="secondary-button" onClick={resetToWelcome}>Kembali</button>
+              <button className="primary-button" onClick={beginCapture} disabled={!cameraReady && !selectedCameraSourceId.startsWith("gphoto:")}>Mulai foto</button>
             </div>
           </div>
         </section>
@@ -416,6 +388,7 @@ export default function App() {
             <h2>{replaceIndex === null ? "Ganti gaya tiap hitungan." : "Ambil ulang foto yang dipilih."}</h2>
             <p className="body small">Shutter berlangsung otomatis. Foto yang sudah aman tidak akan hilang saat pergantian pose.</p>
             <ShotRail shots={shots} activeIndex={replaceIndex ?? captureIndex} />
+            <button className="secondary-button full" onClick={() => setStep("ready")}>Kembali ke kamera</button>
           </div>
         </section>
       )}
@@ -695,7 +668,7 @@ function FinalStripImage({ dataUrl }: { dataUrl: string }) {
 
 function StripShowcase({ template, shots, filterCss, compact = false }: { template: PhotoTemplate; shots: StoredShot[]; filterCss: string; compact?: boolean }) {
   return (
-    <div className={`strip-shell ${compact ? " compact" : ""}`} style={{ width: template.width / (compact ? 9.4 : 4.6), height: template.height / (compact ? 9.4 : 4.6) }}>
+    <div className={`strip-shell ${compact ? " compact" : ""}`} style={{ width: template.width * (compact ? 0.58 : 1.05), height: template.height * (compact ? 0.58 : 1.05) }}>
       {template.slots.map((slot) => {
         const shot = shots.find((item) => item.shotIndex === slot.photoIndex) ?? sampleShots(template.captureCount)[slot.photoIndex];
         return (
