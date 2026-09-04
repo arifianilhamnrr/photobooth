@@ -1,14 +1,17 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, readFile, unlink } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, unlink } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { tmpdir } from "node:os";
+import { renderStrip } from "@photobooth/compositor";
+import { GoogleDriveService } from "@photobooth/drive";
 import {
   buildShotColor,
   type CameraSource,
   createSessionId,
   defaultSettings,
+  type DriveStatus,
   getTemplate,
   type BoothSettings,
   type FilterId,
@@ -17,15 +20,34 @@ import {
   type StoredSession,
   type StoredShot
 } from "@photobooth/domain";
-import { renderStrip } from "@photobooth/compositor";
-import { ensureSessionDirectories, ensureStore, queueFromSessions, readStore, upsertSession, writeDataUrlToFile, writeStore } from "@photobooth/storage";
+import {
+  ensureSessionDirectories,
+  openDatabase,
+  queueFromSessions,
+  readSnapshotFromDatabase,
+  upsertSessionInDatabase,
+  writeDataUrlToFile,
+  writeSettingsToDatabase
+} from "@photobooth/storage";
 
 let mainWindow: BrowserWindow | null = null;
-const storePath = join(app.getPath("userData"), "photobooth-store.json");
+const databasePath = join(app.getPath("userData"), "photobooth.sqlite");
 const sessionsBaseDir = join(app.getPath("userData"), "sessions");
 const overlayPath = join(app.getAppPath(), "src/renderer/assets/photobhoot-transparent.png");
+const driveAuthPath = join(app.getPath("userData"), "drive-auth.json");
 const execFileAsync = promisify(execFile);
 let selectedCameraSourceId = "webcam:default";
+let database = openDatabase(databasePath);
+const driveService = new GoogleDriveService(
+  {
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET
+  },
+  driveAuthPath,
+  async (url: string) => {
+    await execFileAsync(process.platform === "win32" ? "cmd" : "xdg-open", process.platform === "win32" ? ["/c", "start", "", url] : [url]);
+  }
+);
 
 interface CreateSessionInput {
   templateId: string;
@@ -86,14 +108,13 @@ async function captureFromGphoto(sourceId: string): Promise<string> {
   }
 }
 
-async function loadStore() {
-  await ensureStore(storePath);
-  return readStore(storePath);
+async function initializePersistence() {
+  await mkdir(app.getPath("userData"), { recursive: true });
+  database = openDatabase(databasePath);
 }
 
 async function saveSession(session: StoredSession) {
-  const store = await loadStore();
-  await writeStore(storePath, upsertSession(store, session));
+  upsertSessionInDatabase(database, session);
   return session;
 }
 
@@ -129,7 +150,7 @@ function nextStatusForShotCount(shots: StoredShot[], captureCount: number): Sess
 }
 
 async function getSession(sessionId: string): Promise<StoredSession> {
-  const store = await loadStore();
+  const store = readSnapshotFromDatabase(database);
   const session = store.sessions.find((item) => item.id === sessionId);
   if (!session) throw new Error(`Session not found: ${sessionId}`);
   return session;
@@ -139,6 +160,17 @@ async function simulatePublish(sessionId: string): Promise<StoredSession> {
   const session = await getSession(sessionId);
   const syncing = updateSession(session, { status: "sync_pending" });
   await saveSession(syncing);
+
+  const driveStatus = await driveService.getStatus();
+  if (driveStatus.mode === "authenticated") {
+    const result = await driveService.publishSession({ session: syncing, eventName: readSnapshotFromDatabase(database).settings.eventName });
+    const published = updateSession(syncing, {
+      status: "published",
+      driveUrl: result.folderUrl
+    });
+    await saveSession(published);
+    return published;
+  }
 
   await new Promise((resolve) => setTimeout(resolve, 1600));
 
@@ -170,25 +202,22 @@ async function createWindow() {
 }
 
 app.whenReady().then(() => {
+  void initializePersistence();
   ipcMain.handle("system:ping", async () => ({ ok: true }));
   ipcMain.handle("app:snapshot", async () => {
-    const store = await loadStore();
+    const store = readSnapshotFromDatabase(database);
     return {
       settings: store.settings,
       sessions: store.sessions,
       queue: queueFromSessions(store.sessions),
       cameraSources: await listCameraSources(),
-      selectedCameraSourceId
+      selectedCameraSourceId,
+      driveStatus: await driveService.getStatus()
     };
   });
   ipcMain.handle("settings:update", async (_event, settings: Partial<BoothSettings>) => {
-    const store = await loadStore();
-    const next = {
-      ...store,
-      settings: { ...store.settings, ...settings }
-    };
-    await writeStore(storePath, next);
-    return next.settings;
+    const store = readSnapshotFromDatabase(database);
+    return writeSettingsToDatabase(database, { ...store.settings, ...settings });
   });
   ipcMain.handle("session:create", async (_event, input: CreateSessionInput) => {
     const now = new Date().toISOString();
@@ -249,7 +278,7 @@ app.whenReady().then(() => {
     return saveSession(nextSession);
   });
   ipcMain.handle("queue:list", async (): Promise<QueueItem[]> => {
-    const store = await loadStore();
+    const store = readSnapshotFromDatabase(database);
     return queueFromSessions(store.sessions);
   });
   ipcMain.handle("camera:list-sources", async () => listCameraSources());
@@ -257,8 +286,15 @@ app.whenReady().then(() => {
     selectedCameraSourceId = input.sourceId;
     return { selectedCameraSourceId };
   });
+  ipcMain.handle("drive:get-status", async (): Promise<DriveStatus> => driveService.getStatus());
+  ipcMain.handle("drive:sign-in", async (): Promise<DriveStatus> => driveService.signIn());
+  ipcMain.handle("drive:sign-out", async (): Promise<DriveStatus> => driveService.signOut());
+  ipcMain.handle("drive:create-root-folder", async (_event, input: { name: string }): Promise<DriveStatus> => driveService.createRootFolder(input.name));
   ipcMain.handle("store:reset", async () => {
-    await writeStore(storePath, { settings: defaultSettings, sessions: [] });
+    database.close();
+    database = openDatabase(databasePath);
+    database.exec("DELETE FROM shots; DELETE FROM sessions;");
+    writeSettingsToDatabase(database, defaultSettings);
     return { ok: true };
   });
 

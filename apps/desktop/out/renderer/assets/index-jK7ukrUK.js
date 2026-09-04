@@ -14646,6 +14646,7 @@ function App() {
   const [allSessions, setAllSessions] = reactExports.useState([]);
   const [cameraSources, setCameraSources] = reactExports.useState([]);
   const [selectedCameraSourceId, setSelectedCameraSourceId] = reactExports.useState("webcam:default");
+  const [driveStatus, setDriveStatus] = reactExports.useState({ mode: "mock" });
   const [step, setStep] = reactExports.useState("welcome");
   const [templateId, setTemplateId] = reactExports.useState(templates[0].id);
   const [filterId, setFilterId] = reactExports.useState("original");
@@ -14731,6 +14732,7 @@ function App() {
     setQueue(snapshot.queue);
     setCameraSources(snapshot.cameraSources);
     setSelectedCameraSourceId(snapshot.selectedCameraSourceId);
+    setDriveStatus(snapshot.driveStatus);
   }
   async function startCamera() {
     if (selectedCameraSourceId.startsWith("gphoto:")) {
@@ -14856,6 +14858,18 @@ function App() {
     setQrUrl("");
     setQueueStatus("Data lokal direset untuk demo.");
     await refreshSnapshot();
+  }
+  async function signInDrive() {
+    const status = await window.photobooth.drive.signIn();
+    setDriveStatus(status);
+  }
+  async function signOutDrive() {
+    const status = await window.photobooth.drive.signOut();
+    setDriveStatus(status);
+  }
+  async function createDriveRootFolder() {
+    const status = await window.photobooth.drive.createRootFolder(settings.driveRootFolderName);
+    setDriveStatus(status);
   }
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "app-shell", style: { ["--accent-color"]: settings.accentColor }, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "topbar", children: [
@@ -15012,6 +15026,7 @@ function App() {
           ". Link ini bisa dibuka siapa pun yang punya QR-nya."
         ] }),
         qrUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx("img", { className: "qr-image", src: qrUrl, alt: "QR untuk folder Google Drive sesi photobooth" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "qr-placeholder" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "operator-help", children: driveStatus.mode === "authenticated" ? "QR ini menuju folder Google Drive asli." : "QR ini masih memakai link mock sampai Google Drive login dan folder root dikonfigurasi." }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button full", onClick: resetToWelcome, children: "Selesai" })
       ] })
     ] }),
@@ -15048,6 +15063,29 @@ function App() {
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: item.status })
           ] }, item.sessionId))
         ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-section", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { children: "Google Drive" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-list", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-row", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Status" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: driveStatus.mode === "mock" ? "Mock mode" : driveStatus.mode === "configured" ? "Configured" : driveStatus.email || "Authenticated" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-row", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Root folder" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: driveStatus.rootFolderName || "Belum dipilih" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-row", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Mode QR" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: driveStatus.mode === "authenticated" ? "Google Drive nyata" : "Mock link" })
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-camera-picker", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button small", onClick: () => void signInDrive(), children: "Login Google" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button small", onClick: () => void createDriveRootFolder(), children: "Buat folder root" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button small", onClick: () => void signOutDrive(), children: "Logout" })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "operator-help", children: "Set env `GOOGLE_CLIENT_ID` dan `GOOGLE_CLIENT_SECRET` sebelum login agar upload folder Drive benar-benar aktif." })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-section", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("label", { children: "Riwayat sesi lokal" }),

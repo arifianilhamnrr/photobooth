@@ -623,6 +623,13 @@ button {
   font-size: 14px;
 }
 
+.operator-help {
+  margin: 0;
+  color: #8c9196;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .operator-section input[type="color"] {
   width: 88px;
   height: 48px;

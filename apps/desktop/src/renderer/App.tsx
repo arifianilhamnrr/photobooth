@@ -8,6 +8,7 @@ import {
   templates,
   type BoothSettings,
   type CameraSource,
+  type DriveStatus,
   type FilterId,
   type PhotoTemplate,
   type QueueItem,
@@ -26,6 +27,7 @@ export default function App() {
   const [allSessions, setAllSessions] = useState<StoredSession[]>([]);
   const [cameraSources, setCameraSources] = useState<CameraSource[]>([]);
   const [selectedCameraSourceId, setSelectedCameraSourceId] = useState("webcam:default");
+  const [driveStatus, setDriveStatus] = useState<DriveStatus>({ mode: "mock" });
   const [step, setStep] = useState<Step>("welcome");
   const [templateId, setTemplateId] = useState(templates[0].id);
   const [filterId, setFilterId] = useState<FilterId>("original");
@@ -125,6 +127,7 @@ export default function App() {
     setQueue(snapshot.queue);
     setCameraSources(snapshot.cameraSources);
     setSelectedCameraSourceId(snapshot.selectedCameraSourceId);
+    setDriveStatus(snapshot.driveStatus);
   }
 
   async function startCamera() {
@@ -262,6 +265,21 @@ export default function App() {
     setQrUrl("");
     setQueueStatus("Data lokal direset untuk demo.");
     await refreshSnapshot();
+  }
+
+  async function signInDrive() {
+    const status = await window.photobooth.drive.signIn();
+    setDriveStatus(status);
+  }
+
+  async function signOutDrive() {
+    const status = await window.photobooth.drive.signOut();
+    setDriveStatus(status);
+  }
+
+  async function createDriveRootFolder() {
+    const status = await window.photobooth.drive.createRootFolder(settings.driveRootFolderName);
+    setDriveStatus(status);
   }
 
   return (
@@ -431,6 +449,7 @@ export default function App() {
             <h2>Scan untuk ambil fotomu.</h2>
             <p className="body small">Satu folder Drive dibuat untuk sesi {session.id}. Link ini bisa dibuka siapa pun yang punya QR-nya.</p>
             {qrUrl ? <img className="qr-image" src={qrUrl} alt="QR untuk folder Google Drive sesi photobooth" /> : <div className="qr-placeholder" />}
+            <p className="operator-help">{driveStatus.mode === "authenticated" ? "QR ini menuju folder Google Drive asli." : "QR ini masih memakai link mock sampai Google Drive login dan folder root dikonfigurasi."}</p>
             <button className="primary-button full" onClick={resetToWelcome}>Selesai</button>
           </div>
         </section>
@@ -475,6 +494,29 @@ export default function App() {
                   </div>
                 ))}
               </div>
+            </div>
+            <div className="operator-section">
+              <label>Google Drive</label>
+              <div className="operator-list">
+                <div className="operator-row">
+                  <strong>Status</strong>
+                  <span>{driveStatus.mode === "mock" ? "Mock mode" : driveStatus.mode === "configured" ? "Configured" : driveStatus.email || "Authenticated"}</span>
+                </div>
+                <div className="operator-row">
+                  <strong>Root folder</strong>
+                  <span>{driveStatus.rootFolderName || "Belum dipilih"}</span>
+                </div>
+                <div className="operator-row">
+                  <strong>Mode QR</strong>
+                  <span>{driveStatus.mode === "authenticated" ? "Google Drive nyata" : "Mock link"}</span>
+                </div>
+              </div>
+              <div className="operator-camera-picker">
+                <button className="secondary-button small" onClick={() => void signInDrive()}>Login Google</button>
+                <button className="secondary-button small" onClick={() => void createDriveRootFolder()}>Buat folder root</button>
+                <button className="secondary-button small" onClick={() => void signOutDrive()}>Logout</button>
+              </div>
+              <p className="operator-help">Set env `GOOGLE_CLIENT_ID` dan `GOOGLE_CLIENT_SECRET` sebelum login agar upload folder Drive benar-benar aktif.</p>
             </div>
             <div className="operator-section">
               <label>Riwayat sesi lokal</label>

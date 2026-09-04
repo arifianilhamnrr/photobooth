@@ -1,3 +1,4 @@
+import { DatabaseSync } from "node:sqlite";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { defaultSettings, type AppSnapshot, type QueueItem, type StoredSession } from "@photobooth/domain";
@@ -69,4 +70,188 @@ export async function writeDataUrlToFile(filePath: string, dataUrl: string): Pro
   const [, , base64] = match;
   await mkdir(dirname(filePath), { recursive: true });
   await writeFile(filePath, Buffer.from(base64, "base64"));
+}
+
+export function openDatabase(filePath: string): DatabaseSync {
+  const database = new DatabaseSync(filePath);
+  database.exec(`
+    PRAGMA journal_mode = WAL;
+    PRAGMA foreign_keys = ON;
+
+    CREATE TABLE IF NOT EXISTS app_settings (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      settings_json TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      template_id TEXT NOT NULL,
+      filter_id TEXT NOT NULL,
+      status TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      drive_url TEXT,
+      final_strip_path TEXT,
+      final_strip_data_url TEXT,
+      session_dir TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS shots (
+      session_id TEXT NOT NULL,
+      shot_index INTEGER NOT NULL,
+      revision INTEGER NOT NULL,
+      attempts_used INTEGER NOT NULL,
+      color TEXT NOT NULL,
+      data_url TEXT,
+      file_path TEXT,
+      captured_at TEXT NOT NULL,
+      PRIMARY KEY (session_id, shot_index),
+      FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+    );
+  `);
+
+  const row = database.prepare("SELECT settings_json FROM app_settings WHERE id = 1").get() as { settings_json: string } | undefined;
+  if (!row) {
+    database.prepare("INSERT INTO app_settings (id, settings_json) VALUES (1, ?)").run(JSON.stringify(defaultSettings));
+  }
+  return database;
+}
+
+export function readSnapshotFromDatabase(database: DatabaseSync): PersistedStore {
+  const settingsRow = database.prepare("SELECT settings_json FROM app_settings WHERE id = 1").get() as { settings_json: string };
+  const sessionRows = database.prepare(`
+    SELECT id, template_id, filter_id, status, created_at, updated_at, drive_url, final_strip_path, final_strip_data_url, session_dir
+    FROM sessions
+    ORDER BY created_at DESC
+  `).all() as Array<{
+    id: string;
+    template_id: string;
+    filter_id: StoredSession["filterId"];
+    status: StoredSession["status"];
+    created_at: string;
+    updated_at: string;
+    drive_url: string | null;
+    final_strip_path: string | null;
+    final_strip_data_url: string | null;
+    session_dir: string | null;
+  }>;
+
+  const shotRows = database.prepare(`
+    SELECT session_id, shot_index, revision, attempts_used, color, data_url, file_path, captured_at
+    FROM shots
+  `).all() as Array<{
+    session_id: string;
+    shot_index: number;
+    revision: number;
+    attempts_used: number;
+    color: string;
+    data_url: string | null;
+    file_path: string | null;
+    captured_at: string;
+  }>;
+
+  const sessions = sessionRows.map((row) => ({
+    id: row.id,
+    templateId: row.template_id,
+    filterId: row.filter_id,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    driveUrl: row.drive_url ?? undefined,
+    finalStripPath: row.final_strip_path ?? undefined,
+    finalStripDataUrl: row.final_strip_data_url ?? undefined,
+    sessionDir: row.session_dir ?? undefined,
+    shots: shotRows
+      .filter((shot) => shot.session_id === row.id)
+      .sort((left, right) => left.shot_index - right.shot_index)
+      .map((shot) => ({
+        shotIndex: shot.shot_index,
+        revision: shot.revision,
+        attemptsUsed: shot.attempts_used,
+        color: shot.color,
+        dataUrl: shot.data_url ?? undefined,
+        filePath: shot.file_path ?? undefined,
+        capturedAt: shot.captured_at
+      }))
+  }));
+
+  return {
+    settings: { ...defaultSettings, ...JSON.parse(settingsRow.settings_json) },
+    sessions
+  };
+}
+
+export function writeSettingsToDatabase(database: DatabaseSync, settings: PersistedStore["settings"]): PersistedStore["settings"] {
+  database.prepare("UPDATE app_settings SET settings_json = ? WHERE id = 1").run(JSON.stringify(settings));
+  return settings;
+}
+
+export function upsertSessionInDatabase(database: DatabaseSync, session: StoredSession): StoredSession {
+  const saveSession = database.prepare(`
+    INSERT INTO sessions (id, template_id, filter_id, status, created_at, updated_at, drive_url, final_strip_path, final_strip_data_url, session_dir)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      template_id = excluded.template_id,
+      filter_id = excluded.filter_id,
+      status = excluded.status,
+      created_at = excluded.created_at,
+      updated_at = excluded.updated_at,
+      drive_url = excluded.drive_url,
+      final_strip_path = excluded.final_strip_path,
+      final_strip_data_url = excluded.final_strip_data_url,
+      session_dir = excluded.session_dir
+  `);
+  const saveShot = database.prepare(`
+    INSERT INTO shots (session_id, shot_index, revision, attempts_used, color, data_url, file_path, captured_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(session_id, shot_index) DO UPDATE SET
+      revision = excluded.revision,
+      attempts_used = excluded.attempts_used,
+      color = excluded.color,
+      data_url = excluded.data_url,
+      file_path = excluded.file_path,
+      captured_at = excluded.captured_at
+  `);
+  const deleteMissingShots = database.prepare("DELETE FROM shots WHERE session_id = ? AND shot_index = ?");
+  const existingShotIndexes = new Set<number>((database.prepare("SELECT shot_index FROM shots WHERE session_id = ?").all(session.id) as Array<{ shot_index: number }>).map((row) => row.shot_index));
+
+  database.exec("BEGIN");
+  try {
+    saveSession.run(
+      session.id,
+      session.templateId,
+      session.filterId,
+      session.status,
+      session.createdAt,
+      session.updatedAt,
+      session.driveUrl ?? null,
+      session.finalStripPath ?? null,
+      session.finalStripDataUrl ?? null,
+      session.sessionDir ?? null
+    );
+
+    for (const shot of session.shots) {
+      saveShot.run(
+        session.id,
+        shot.shotIndex,
+        shot.revision,
+        shot.attemptsUsed,
+        shot.color,
+        shot.dataUrl ?? null,
+        shot.filePath ?? null,
+        shot.capturedAt
+      );
+      existingShotIndexes.delete(shot.shotIndex);
+    }
+
+    for (const shotIndex of existingShotIndexes) {
+      deleteMissingShots.run(session.id, shotIndex);
+    }
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+
+  return session;
 }

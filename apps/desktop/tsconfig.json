@@ -7,8 +7,9 @@
     "paths": {
       "@photobooth/domain": ["../../packages/domain/src/index.ts"],
       "@photobooth/storage": ["../../packages/storage/src/index.ts"],
-      "@photobooth/compositor": ["../../packages/compositor/src/index.ts"]
+      "@photobooth/compositor": ["../../packages/compositor/src/index.ts"],
+      "@photobooth/drive": ["../../packages/drive/src/index.ts"]
     }
   },
-  "include": ["src", "electron.vite.config.ts", "../../packages/domain/src/**/*.ts", "../../packages/storage/src/**/*.ts", "../../packages/compositor/src/**/*.ts"]
+  "include": ["src", "electron.vite.config.ts", "../../packages/domain/src/**/*.ts", "../../packages/storage/src/**/*.ts", "../../packages/compositor/src/**/*.ts", "../../packages/drive/src/**/*.ts"]
 }

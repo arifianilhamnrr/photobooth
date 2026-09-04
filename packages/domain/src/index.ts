@@ -90,6 +90,13 @@ export interface CameraSource {
   label: string;
 }
 
+export interface DriveStatus {
+  mode: "mock" | "configured" | "authenticated";
+  email?: string;
+  rootFolderId?: string;
+  rootFolderName?: string;
+}
+
 export interface AppSnapshot {
   settings: BoothSettings;
   sessions: StoredSession[];

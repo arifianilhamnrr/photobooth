@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "dependencies": {
+    "googleapis": "^178.0.0"
+  },
   "scripts": {
     "typecheck": "tsc --project tsconfig.json --noEmit"
   }
