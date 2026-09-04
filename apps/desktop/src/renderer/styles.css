@@ -250,37 +250,21 @@ button {
   align-items: end;
 }
 
+.compact-head h2 {
+  font-size: clamp(30px, 2.6vw, 42px);
+}
+
 .compact-template-grid {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 14px;
 }
 
 .compact-template-card {
-  position: relative;
   display: grid;
   place-items: center;
-  min-height: 290px;
-  padding: 18px;
-  overflow: hidden;
-}
-
-.frame-selection-mark {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  padding: 7px 10px;
-  border-radius: 999px;
-  border: 1px solid #41464b;
-  background: rgba(17, 19, 21, 0.88);
-  color: #9ea5a9;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.compact-template-card.selected .frame-selection-mark {
-  border-color: var(--accent-color);
-  background: var(--accent-color);
-  color: #15110f;
+  min-height: 360px;
+  padding: 12px 8px;
+  overflow: visible;
 }
 
 .compact-actions {

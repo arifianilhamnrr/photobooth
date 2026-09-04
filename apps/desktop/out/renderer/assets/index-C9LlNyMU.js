@@ -15023,17 +15023,14 @@ function App() {
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "template-grid compact-template-grid", children: templates.map((item) => {
         const selected = item.id === templateId;
         const previewTemplate = { ...item, slots: settings.slotOverrides[item.id] ?? item.slots };
-        return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        return /* @__PURE__ */ jsxRuntimeExports.jsx(
           "button",
           {
             className: `template-card compact-template-card${selected ? " selected" : ""}`,
             onClick: () => setTemplateId(item.id),
             "aria-label": `Pilih ${item.name}`,
             "aria-pressed": selected,
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(StripShowcase, { template: previewTemplate, shots: sampleShots(item.captureCount), filterCss: filter.cssFilter, compact: true }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "frame-selection-mark", "aria-hidden": "true", children: selected ? "Dipilih" : "Pilih" })
-            ]
+            children: /* @__PURE__ */ jsxRuntimeExports.jsx(StripShowcase, { template: previewTemplate, shots: sampleShots(item.captureCount), filterCss: filter.cssFilter, picker: true })
           },
           item.id
         );
@@ -15403,11 +15400,11 @@ function CameraStage({
 function FinalStripImage({ dataUrl }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsx("img", { className: "final-strip-image", src: dataUrl, alt: "Hasil strip photobooth" });
 }
-function StripShowcase({ template, shots, filterCss, compact = false, selectedSlotIndex }) {
+function StripShowcase({ template, shots, filterCss, compact = false, picker = false, selectedSlotIndex }) {
   const overlayUrl = frameAssets[template.overlayAsset] ?? frame3Url;
-  const displayHeight = compact ? 138 : 520;
+  const displayHeight = picker ? 330 : compact ? 138 : 520;
   const displayWidth = displayHeight * (template.width / template.height);
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `strip-shell ${compact ? " compact" : ""}`, style: { width: displayWidth, height: displayHeight }, children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `strip-shell ${compact || picker ? " compact" : ""}`, style: { width: displayWidth, height: displayHeight }, children: [
     template.slots.map((slot, slotIndex) => {
       const shot = shots.find((item) => item.shotIndex === slot.photoIndex) ?? sampleShots(template.captureCount)[slot.photoIndex];
       return /* @__PURE__ */ jsxRuntimeExports.jsx(

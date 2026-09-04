@@ -402,8 +402,7 @@ export default function App() {
                   aria-label={`Pilih ${item.name}`}
                   aria-pressed={selected}
                 >
-                  <StripShowcase template={previewTemplate} shots={sampleShots(item.captureCount)} filterCss={filter.cssFilter} compact />
-                  <span className="frame-selection-mark" aria-hidden="true">{selected ? "Dipilih" : "Pilih"}</span>
+                  <StripShowcase template={previewTemplate} shots={sampleShots(item.captureCount)} filterCss={filter.cssFilter} picker />
                 </button>
               );
             })}
@@ -827,12 +826,12 @@ function FinalStripImage({ dataUrl }: { dataUrl: string }) {
   return <img className="final-strip-image" src={dataUrl} alt="Hasil strip photobooth" />;
 }
 
-function StripShowcase({ template, shots, filterCss, compact = false, selectedSlotIndex }: { template: PhotoTemplate; shots: StoredShot[]; filterCss: string; compact?: boolean; selectedSlotIndex?: number }) {
+function StripShowcase({ template, shots, filterCss, compact = false, picker = false, selectedSlotIndex }: { template: PhotoTemplate; shots: StoredShot[]; filterCss: string; compact?: boolean; picker?: boolean; selectedSlotIndex?: number }) {
   const overlayUrl = frameAssets[template.overlayAsset] ?? frame3Url;
-  const displayHeight = compact ? 138 : 520;
+  const displayHeight = picker ? 330 : compact ? 138 : 520;
   const displayWidth = displayHeight * (template.width / template.height);
   return (
-    <div className={`strip-shell ${compact ? " compact" : ""}`} style={{ width: displayWidth, height: displayHeight }}>
+    <div className={`strip-shell ${compact || picker ? " compact" : ""}`} style={{ width: displayWidth, height: displayHeight }}>
       {template.slots.map((slot, slotIndex) => {
         const shot = shots.find((item) => item.shotIndex === slot.photoIndex) ?? sampleShots(template.captureCount)[slot.photoIndex];
         return (
