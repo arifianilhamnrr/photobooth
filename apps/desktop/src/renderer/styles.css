@@ -392,6 +392,29 @@ button {
   transform: rotate(6deg);
 }
 
+.camera-overlay-copy {
+  position: absolute;
+  left: 24px;
+  top: 24px;
+  display: grid;
+  gap: 6px;
+  max-width: 280px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(12, 13, 14, 0.68);
+  border: 1px solid rgba(242, 241, 237, 0.1);
+}
+
+.camera-overlay-copy strong {
+  font-size: 16px;
+}
+
+.camera-overlay-copy span {
+  color: #c2c7ca;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .camera-badge {
   position: absolute;
   left: 24px;
@@ -463,6 +486,29 @@ button {
 .shot-list {
   margin: 16px 0;
   grid-template-columns: 1fr;
+}
+
+.camera-status-card,
+.capture-status-card {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid #34383c;
+  background: #121416;
+}
+
+.camera-status-card strong,
+.capture-status-card strong {
+  font-size: 16px;
+}
+
+.camera-status-card span,
+.capture-status-card span {
+  color: #9ea5a9;
+  font-size: 14px;
+  line-height: 1.45;
 }
 
 .shot-card {

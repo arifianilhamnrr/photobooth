@@ -43,6 +43,7 @@ export default function App() {
   const [cameraError, setCameraError] = useState<string>("");
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraLabel, setCameraLabel] = useState("Kamera belum dipilih");
+  const [cameraStatusMessage, setCameraStatusMessage] = useState("Sedang menyiapkan kamera.");
   const [recipientEmail, setRecipientEmail] = useState("");
   const [emailError, setEmailError] = useState("");
   const [kioskEnabled, setKioskEnabled] = useState(true);
@@ -143,6 +144,7 @@ export default function App() {
       setCameraLabel(source?.label ?? "Canon EOS");
       setCameraReady(false);
       setCameraError("Preview live Canon belum aktif. Capture akan diambil langsung dari kamera.");
+      setCameraStatusMessage("Canon siap dipakai untuk jepret langsung, tetapi preview live belum tersedia.");
       return;
     }
     if (streamRef.current || !videoRef.current) return;
@@ -160,6 +162,7 @@ export default function App() {
       setCameraLabel(track?.label || "Kamera aktif");
       setCameraReady(true);
       setCameraError("");
+      setCameraStatusMessage("Kamera aktif. Pastikan semua orang sudah masuk frame.");
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play().catch(() => undefined);
@@ -168,6 +171,7 @@ export default function App() {
       setCameraReady(false);
       setCameraError(error instanceof Error ? error.message : "Kamera tidak tersedia");
       setCameraLabel("Fallback demo");
+      setCameraStatusMessage("Kamera belum bisa dipakai. Cek izin kamera atau pilih source lain dari panel operator.");
     }
   }
 
@@ -354,6 +358,10 @@ export default function App() {
               <div><span>Filter</span><strong>{filter.label}</strong></div>
               <div><span>Retake</span><strong>{settings.retakeLimitPerPhoto} kali per foto</strong></div>
             </div>
+            <div className="camera-status-card">
+              <strong>{cameraReady ? "Kamera siap" : selectedCameraSourceId.startsWith("gphoto:") ? "Canon mode" : "Kamera belum siap"}</strong>
+              <span>{cameraStatusMessage}</span>
+            </div>
             {!cameraReady && !selectedCameraSourceId.startsWith("gphoto:") && (
               <div className="inline-warning">
                 <strong>Kamera belum aktif.</strong>
@@ -386,7 +394,11 @@ export default function App() {
           <div className="capture-rail">
             <p className="eyebrow">CAPTURE</p>
             <h2>{replaceIndex === null ? "Ganti gaya tiap hitungan." : "Ambil ulang foto yang dipilih."}</h2>
-            <p className="body small">Shutter berlangsung otomatis. Foto yang sudah aman tidak akan hilang saat pergantian pose.</p>
+            <p className="body small">Shutter berlangsung otomatis. Tiap foto yang sudah aman langsung masuk ke strip dan tidak hilang saat pergantian pose.</p>
+            <div className="capture-status-card">
+              <strong>{replaceIndex === null ? `Pose ${captureIndex + 1} dari ${template.captureCount}` : `Retake foto ${replaceIndex + 1}`}</strong>
+              <span>{countdown > 1 ? `Bersiap, foto akan diambil dalam ${countdown} detik.` : "Jepret sekarang."}</span>
+            </div>
             <ShotRail shots={shots} activeIndex={replaceIndex ?? captureIndex} />
             <button className="secondary-button full" onClick={() => setStep("ready")}>Kembali ke kamera</button>
           </div>
@@ -648,6 +660,10 @@ function MockCamera({ filterCss, label }: { filterCss: string; label: string }) 
       <div className="mock-person left" />
       <div className="mock-person right" />
       <div className="camera-badge">{label}</div>
+      <div className="camera-overlay-copy">
+        <strong>Preview belum aktif</strong>
+        <span>Kamu masih bisa kembali dan pilih source kamera lain dari panel operator.</span>
+      </div>
     </div>
   );
 }

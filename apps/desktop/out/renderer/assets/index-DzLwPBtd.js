@@ -14580,7 +14580,7 @@ function requireBrowser() {
 }
 var browserExports = requireBrowser();
 const QRCode = /* @__PURE__ */ getDefaultExportFromCjs(browserExports);
-const providedFrameUrl = "" + new URL("photobhoot-transparent-C-bQ9HFh.png", import.meta.url).href;
+const providedFrameUrl = "" + new URL("photobhoot-transparent-DyPEva-1.png", import.meta.url).href;
 const filters = [
   { id: "original", label: "Original", cssFilter: "none" },
   { id: "mono", label: "Mono", cssFilter: "grayscale(1) contrast(1.08)" },
@@ -14599,37 +14599,20 @@ const defaultSettings = {
 };
 const templates = [
   {
-    id: "classic-strip-3",
-    name: "Classic Strip",
-    description: "Tiga foto diulang ke dua kolom agar penuh sesuai frame.",
-    captureCount: 3,
-    width: 3765,
-    height: 5610,
+    id: "collaboration-strip-6",
+    name: "Collaboration Strip",
+    description: "Frame default 6 foto untuk hasil event yang rapi dan penuh.",
+    captureCount: 6,
+    width: 386,
+    height: 574,
     overlayStyle: "provided-frame",
     slots: [
-      { id: "slot-1", photoIndex: 0, x: 221, y: 958, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-2", photoIndex: 0, x: 1937, y: 958, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-3", photoIndex: 1, x: 221, y: 2263, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-4", photoIndex: 1, x: 1937, y: 2263, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-5", photoIndex: 2, x: 221, y: 3567, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-6", photoIndex: 2, x: 1937, y: 3567, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 }
-    ]
-  },
-  {
-    id: "night-booth-4",
-    name: "Night Booth",
-    description: "Empat foto masuk ke enam slot dengan dua pengulangan agar frame tetap penuh.",
-    captureCount: 4,
-    width: 3765,
-    height: 5610,
-    overlayStyle: "provided-frame",
-    slots: [
-      { id: "slot-1", photoIndex: 0, x: 221, y: 958, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-2", photoIndex: 1, x: 1937, y: 958, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-3", photoIndex: 2, x: 221, y: 2263, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-4", photoIndex: 3, x: 1937, y: 2263, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-5", photoIndex: 0, x: 221, y: 3567, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-6", photoIndex: 1, x: 1937, y: 3567, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 }
+      { id: "slot-1", photoIndex: 0, x: 12, y: 54, width: 119, height: 103, rotation: 0, cornerRadius: 4 },
+      { id: "slot-2", photoIndex: 1, x: 157, y: 54, width: 119, height: 103, rotation: 0, cornerRadius: 4 },
+      { id: "slot-3", photoIndex: 2, x: 12, y: 163, width: 119, height: 104, rotation: 0, cornerRadius: 4 },
+      { id: "slot-4", photoIndex: 3, x: 157, y: 163, width: 119, height: 104, rotation: 0, cornerRadius: 4 },
+      { id: "slot-5", photoIndex: 4, x: 12, y: 272, width: 119, height: 104, rotation: 0, cornerRadius: 4 },
+      { id: "slot-6", photoIndex: 5, x: 157, y: 272, width: 119, height: 104, rotation: 0, cornerRadius: 4 }
     ]
   }
 ];
@@ -14661,6 +14644,7 @@ function App() {
   const [cameraError, setCameraError] = reactExports.useState("");
   const [cameraReady, setCameraReady] = reactExports.useState(false);
   const [cameraLabel, setCameraLabel] = reactExports.useState("Kamera belum dipilih");
+  const [cameraStatusMessage, setCameraStatusMessage] = reactExports.useState("Sedang menyiapkan kamera.");
   const [recipientEmail, setRecipientEmail] = reactExports.useState("");
   const [emailError, setEmailError] = reactExports.useState("");
   const [kioskEnabled, setKioskEnabled] = reactExports.useState(true);
@@ -14746,6 +14730,7 @@ function App() {
       setCameraLabel(source?.label ?? "Canon EOS");
       setCameraReady(false);
       setCameraError("Preview live Canon belum aktif. Capture akan diambil langsung dari kamera.");
+      setCameraStatusMessage("Canon siap dipakai untuk jepret langsung, tetapi preview live belum tersedia.");
       return;
     }
     if (streamRef.current || !videoRef.current) return;
@@ -14763,6 +14748,7 @@ function App() {
       setCameraLabel(track?.label || "Kamera aktif");
       setCameraReady(true);
       setCameraError("");
+      setCameraStatusMessage("Kamera aktif. Pastikan semua orang sudah masuk frame.");
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play().catch(() => void 0);
@@ -14771,6 +14757,7 @@ function App() {
       setCameraReady(false);
       setCameraError(error instanceof Error ? error.message : "Kamera tidak tersedia");
       setCameraLabel("Fallback demo");
+      setCameraStatusMessage("Kamera belum bisa dipakai. Cek izin kamera atau pilih source lain dari panel operator.");
     }
   }
   function stopCamera() {
@@ -14794,7 +14781,9 @@ function App() {
     setAllSessions((current) => [nextSession, ...current.filter((item) => item.id !== nextSession.id)]);
   }
   async function startSession() {
-    const nextSession = await window.photobooth.sessions.create({ templateId, filterId });
+    const forcedTemplateId = templates[0].id;
+    setTemplateId(forcedTemplateId);
+    const nextSession = await window.photobooth.sessions.create({ templateId: forcedTemplateId, filterId });
     setSession(nextSession);
     updateSessionCollection(nextSession);
     setCaptureIndex(0);
@@ -14803,11 +14792,15 @@ function App() {
     setQrUrl("");
     setRecipientEmail("");
     setEmailError("");
-    setQueueStatus("Pilih template untuk sesi ini.");
-    setStep(templates.length > 1 ? "template" : "ready");
+    setQueueStatus("Frame default siap dipakai.");
+    setStep("ready");
   }
   function beginCapture() {
     if (!session) return;
+    if (!cameraReady && !selectedCameraSourceId.startsWith("gphoto:")) {
+      setQueueStatus("Kamera belum siap. Cek koneksi kamera atau kembali ke layar sebelumnya.");
+      return;
+    }
     setCaptureIndex(0);
     setCountdown(settings.countdownSeconds);
     setQueueStatus(`Ambil ${template.captureCount} foto untuk template ${template.name}.`);
@@ -14911,43 +14904,11 @@ function App() {
     step === "welcome" && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "welcome-layout screen-card", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "copy-column", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "EVENT KIOSK" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "Siap bikin strip foto yang bisa langsung diambil lewat QR?" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body", children: "Offline dulu untuk capture dan render. Begitu koneksi ada, hasilmu otomatis masuk folder Google Drive." }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: () => void startSession(), children: "Mulai" })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "Siap bikin strip 6 foto yang langsung bisa dikirim?" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body", children: "Setelah selesai foto, tamu isi email lalu link hasil otomatis dikirim dan tetap tersedia lewat QR." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "welcome-actions", children: /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: () => void startSession(), children: "Mulai" }) })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(StripShowcase, { template, shots: sampleShots(template.captureCount), filterCss: filter.cssFilter })
-    ] }),
-    step === "template" && session && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "screen-card stack-gap", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "section-head", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "PILIH TEMPLATE" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "Pilih gaya strip dulu." })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Setiap template menentukan jumlah foto yang harus diambil." })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "template-grid", children: templates.map((item) => {
-        const selected = item.id === templateId;
-        return /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: `template-card${selected ? " selected" : ""}`, onClick: () => setTemplateId(item.id), children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(StripShowcase, { template: item, shots: sampleShots(item.captureCount), filterCss: filter.cssFilter, compact: true }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "template-meta", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: item.name }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
-              item.captureCount,
-              " foto"
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: item.description })
-          ] })
-        ] }, item.id);
-      }) }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "action-row", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "filter-row", children: filters.map((item) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: `chip-button${filterId === item.id ? " active" : ""}`, onClick: () => setFilterId(item.id), children: item.label }, item.id)) }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: async () => {
-          const updated = await window.photobooth.sessions.updateConfig({ sessionId: session.id, templateId, filterId });
-          setSession(updated);
-          updateSessionCollection(updated);
-          setStep("ready");
-        }, children: "Pakai template ini" })
-      ] })
     ] }),
     step === "ready" && session && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "ready-layout screen-card", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "camera-stage", children: /* @__PURE__ */ jsxRuntimeExports.jsx(CameraStage, { videoRef, cameraReady, cameraError, filterCss: filter.cssFilter, label: cameraLabel }) }),
@@ -14955,9 +14916,9 @@ function App() {
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "KAMERA SIAP" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "Semua sudah masuk frame?" }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "body small", children: [
-          "Template ini butuh ",
+          "Frame default memakai ",
           template.captureCount,
-          " foto. Kamu bisa retake per foto setelah semuanya selesai diambil."
+          " foto. Kalau kamera belum siap, kamu tetap bisa kembali dan ganti source kamera dari operator."
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "detail-list", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
@@ -14976,9 +14937,17 @@ function App() {
             ] })
           ] })
         ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "camera-status-card", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: cameraReady ? "Kamera siap" : selectedCameraSourceId.startsWith("gphoto:") ? "Canon mode" : "Kamera belum siap" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: cameraStatusMessage })
+        ] }),
+        !cameraReady && !selectedCameraSourceId.startsWith("gphoto:") && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "inline-warning", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Kamera belum aktif." }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Cek izin kamera atau buka operator untuk pilih source lain." })
+        ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "dual-actions", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", onClick: () => setStep("template"), children: "Kembali" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: beginCapture, children: "Mulai foto" })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", onClick: resetToWelcome, children: "Kembali" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: beginCapture, disabled: !cameraReady && !selectedCameraSourceId.startsWith("gphoto:"), children: "Mulai foto" })
         ] })
       ] })
     ] }),
@@ -15002,8 +14971,13 @@ function App() {
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "capture-rail", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "CAPTURE" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: replaceIndex === null ? "Ganti gaya tiap hitungan." : "Ambil ulang foto yang dipilih." }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Shutter berlangsung otomatis. Foto yang sudah aman tidak akan hilang saat pergantian pose." }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(ShotRail, { shots, activeIndex: replaceIndex ?? captureIndex })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Shutter berlangsung otomatis. Tiap foto yang sudah aman langsung masuk ke strip dan tidak hilang saat pergantian pose." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "capture-status-card", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: replaceIndex === null ? `Pose ${captureIndex + 1} dari ${template.captureCount}` : `Retake foto ${replaceIndex + 1}` }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: countdown > 1 ? `Bersiap, foto akan diambil dalam ${countdown} detik.` : "Jepret sekarang." })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(ShotRail, { shots, activeIndex: replaceIndex ?? captureIndex }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button full", onClick: () => setStep("ready"), children: "Kembali ke kamera" })
       ] })
     ] }),
     step === "review" && session && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "review-layout screen-card", children: [
@@ -15027,7 +15001,16 @@ function App() {
             /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button small", disabled: !shot || remainingRetake === 0, onClick: () => requestRetake(index), children: "Ulangi foto ini" })
           ] }, index);
         }) }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button full", onClick: () => void finishReview(), children: "Gunakan hasil ini" })
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "panel-footer", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "footer-note", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("strong", { children: [
+              template.captureCount,
+              " foto terpasang"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Lanjutkan untuk kirim link ke email tamu." })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button full", onClick: () => void finishReview(), children: "Lanjut kirim link" })
+        ] })
       ] })
     ] }),
     step === "email" && session && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "result-layout screen-card", children: [
@@ -15053,9 +15036,15 @@ function App() {
           }
         ),
         emailError ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "error-text", children: emailError }) : /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "operator-help", children: "Contoh: nama@email.com" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "dual-actions stacked-mobile", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", onClick: () => setStep("review"), children: "Kembali" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: () => void submitEmailAndPublish(), children: "Kirim link" })
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "panel-footer compact", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "footer-note", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Email tamu" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Link hasil akan tetap tersedia juga lewat QR." })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "dual-actions stacked-mobile", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", onClick: () => setStep("review"), children: "Kembali" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: () => void submitEmailAndPublish(), children: "Kirim link" })
+          ] })
         ] })
       ] })
     ] }),
@@ -15079,7 +15068,13 @@ function App() {
         qrUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx("img", { className: "qr-image", src: qrUrl, alt: "QR untuk folder Google Drive sesi photobooth" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "qr-placeholder" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "operator-help", children: driveStatus.mode === "authenticated" ? "QR ini menuju folder Google Drive asli." : "QR ini akan menuju Cloudflare domain atau fallback yang aktif." }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "operator-help", children: cloudStatus.mode === "configured" ? `Cloudflare aktif di ${cloudStatus.baseUrl}. Publish akan diarahkan ke sana lebih dulu.` : "Cloudflare belum aktif. Publish akan memakai fallback lain." }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button full", onClick: resetToWelcome, children: "Selesai" })
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "panel-footer compact", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "footer-note", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Hasil siap diambil" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Scan QR atau cek email yang tadi sudah diisi." })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button full", onClick: resetToWelcome, children: "Selesai" })
+        ] })
       ] })
     ] }),
     operatorOpen && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "operator-scrim", onClick: () => setOperatorOpen(false), children: /* @__PURE__ */ jsxRuntimeExports.jsxs("aside", { className: "operator-panel", onClick: (event) => event.stopPropagation(), children: [
@@ -15202,7 +15197,11 @@ function MockCamera({ filterCss, label }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mock-camera", style: { filter: filterCss }, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mock-person left" }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mock-person right" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "camera-badge", children: label })
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "camera-badge", children: label }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "camera-overlay-copy", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Preview belum aktif" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Kamu masih bisa kembali dan pilih source kamera lain dari panel operator." })
+    ] })
   ] });
 }
 function CameraStage({
@@ -15227,7 +15226,7 @@ function FinalStripImage({ dataUrl }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsx("img", { className: "final-strip-image", src: dataUrl, alt: "Hasil strip photobooth" });
 }
 function StripShowcase({ template, shots, filterCss, compact = false }) {
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `strip-shell ${compact ? " compact" : ""}`, style: { width: template.width / (compact ? 9.4 : 4.6), height: template.height / (compact ? 9.4 : 4.6) }, children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `strip-shell ${compact ? " compact" : ""}`, style: { width: template.width * (compact ? 0.58 : 1.05), height: template.height * (compact ? 0.58 : 1.05) }, children: [
     template.slots.map((slot) => {
       const shot = shots.find((item) => item.shotIndex === slot.photoIndex) ?? sampleShots(template.captureCount)[slot.photoIndex];
       return /* @__PURE__ */ jsxRuntimeExports.jsx(

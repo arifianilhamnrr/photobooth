@@ -20,6 +20,7 @@ body,
 body {
   min-width: 1280px;
   min-height: 100dvh;
+  overflow: hidden;
   background:
     radial-gradient(circle at 18% 10%, rgba(255, 112, 72, 0.14), transparent 28%),
     radial-gradient(circle at 88% 14%, rgba(114, 138, 255, 0.08), transparent 20%),
@@ -39,11 +40,11 @@ button {
 }
 
 .app-shell {
-  min-height: 100dvh;
-  padding: 28px;
+  height: 100dvh;
+  padding: 18px;
   display: grid;
   grid-template-rows: auto 1fr;
-  gap: 22px;
+  gap: 14px;
 }
 
 .topbar {
@@ -51,7 +52,7 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 18px 24px;
+  padding: 14px 18px;
   border: 1px solid #34383c;
   border-radius: 18px;
   background: rgba(24, 26, 28, 0.8);
@@ -107,6 +108,7 @@ button {
 
 .screen-card {
   min-height: 0;
+  height: 100%;
   border: 1px solid #34383c;
   border-radius: 28px;
   background: rgba(24, 26, 28, 0.88);
@@ -119,12 +121,12 @@ button {
 .review-layout,
 .result-layout {
   display: grid;
-  gap: 24px;
-  padding: 28px;
+  gap: 18px;
+  padding: 18px;
 }
 
 .welcome-layout {
-  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+  grid-template-columns: minmax(0, 0.95fr) minmax(320px, 0.7fr);
   align-items: center;
 }
 
@@ -143,21 +145,27 @@ button {
 .saving-layout h2,
 .qr-panel h2 {
   margin: 14px 0 0;
-  font-size: clamp(42px, 4vw, 66px);
+  font-size: clamp(34px, 3.2vw, 54px);
   line-height: 0.96;
   letter-spacing: -0.06em;
 }
 
 .body {
-  margin: 22px 0 0;
+  margin: 16px 0 0;
   max-width: 34ch;
   color: #b2b4b3;
-  font-size: 20px;
-  line-height: 1.55;
+  font-size: 17px;
+  line-height: 1.45;
 }
 
 .body.small {
-  font-size: 17px;
+  font-size: 15px;
+}
+
+.welcome-actions {
+  margin-top: 22px;
+  display: flex;
+  gap: 12px;
 }
 
 .primary-button,
@@ -203,8 +211,8 @@ button {
 
 .stack-gap {
   display: grid;
-  gap: 24px;
-  padding: 28px;
+  gap: 16px;
+  padding: 18px;
 }
 
 .section-head,
@@ -287,7 +295,8 @@ button {
   border: 1px solid #34383c;
   background: #131517;
   overflow: hidden;
-  min-height: 620px;
+  min-height: 0;
+  height: 100%;
 }
 
 .camera-stage.full {
@@ -310,7 +319,7 @@ button {
 }
 
 .detail-list {
-  margin: 26px 0;
+  margin: 18px 0;
 }
 
 .detail-list div {
@@ -325,7 +334,7 @@ button {
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 620px;
+  min-height: 0;
   background:
     radial-gradient(circle at 50% 26%, rgba(255, 112, 72, 0.18), transparent 24%),
     linear-gradient(180deg, #2b2f33, #1c1f22 40%, #121315 100%);
@@ -339,7 +348,7 @@ button {
 
 .live-camera-shell {
   position: relative;
-  min-height: 620px;
+  min-height: 0;
   background: #090a0b;
 }
 
@@ -383,6 +392,29 @@ button {
   transform: rotate(6deg);
 }
 
+.camera-overlay-copy {
+  position: absolute;
+  left: 24px;
+  top: 24px;
+  display: grid;
+  gap: 6px;
+  max-width: 280px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(12, 13, 14, 0.68);
+  border: 1px solid rgba(242, 241, 237, 0.1);
+}
+
+.camera-overlay-copy strong {
+  font-size: 16px;
+}
+
+.camera-overlay-copy span {
+  color: #c2c7ca;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .camera-badge {
   position: absolute;
   left: 24px;
@@ -398,8 +430,8 @@ button {
   position: absolute;
   inset: 50% auto auto 50%;
   transform: translate(-50%, -50%);
-  width: 240px;
-  height: 240px;
+  width: 190px;
+  height: 190px;
   border-radius: 50%;
   background: rgba(16, 17, 18, 0.62);
   border: 1px solid rgba(242, 241, 237, 0.12);
@@ -410,8 +442,8 @@ button {
 
 .countdown-ring span {
   display: block;
-  margin-top: 26px;
-  font-size: 116px;
+  margin-top: 16px;
+  font-size: 88px;
   line-height: 0.9;
   letter-spacing: -0.08em;
 }
@@ -452,7 +484,31 @@ button {
 }
 
 .shot-list {
-  margin: 24px 0;
+  margin: 16px 0;
+  grid-template-columns: 1fr;
+}
+
+.camera-status-card,
+.capture-status-card {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid #34383c;
+  background: #121416;
+}
+
+.camera-status-card strong,
+.capture-status-card strong {
+  font-size: 16px;
+}
+
+.camera-status-card span,
+.capture-status-card span {
+  color: #9ea5a9;
+  font-size: 14px;
+  line-height: 1.45;
 }
 
 .shot-card {
@@ -464,7 +520,7 @@ button {
 }
 
 .shot-thumb {
-  height: 92px;
+  height: 76px;
   border-radius: 14px;
   display: grid;
   place-items: center;
@@ -490,11 +546,12 @@ button {
 .result-board.narrow {
   display: grid;
   place-items: center;
+  padding: 18px;
 }
 
 .final-strip-image {
-  width: min(100%, 520px);
-  max-height: 100%;
+  width: min(100%, 360px);
+  max-height: calc(100dvh - 220px);
   object-fit: contain;
   display: block;
   margin: auto;
@@ -506,11 +563,38 @@ button {
   justify-content: center;
 }
 
+.panel-footer {
+  margin-top: auto;
+  display: grid;
+  gap: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #2b2f33;
+}
+
+.panel-footer.compact {
+  gap: 12px;
+}
+
+.footer-note {
+  display: grid;
+  gap: 4px;
+}
+
+.footer-note strong {
+  font-size: 16px;
+  color: #f2f1ed;
+}
+
+.footer-note span {
+  font-size: 14px;
+  color: #98a0a4;
+}
+
 .qr-image,
 .qr-placeholder {
-  width: 320px;
-  height: 320px;
-  margin: 28px 0;
+  width: 240px;
+  height: 240px;
+  margin: 18px 0;
   border-radius: 24px;
   border: 1px solid #34383c;
   background: #151617;
@@ -522,7 +606,7 @@ button {
   border-radius: 28px;
   overflow: hidden;
   background: #ece3d6;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
 }
 
 .strip-shell.compact {
@@ -568,7 +652,23 @@ button {
   width: 100%;
   height: 100%;
   display: block;
-  object-fit: cover;
+  object-fit: contain;
+}
+
+.inline-warning {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 18px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 157, 102, 0.28);
+  background: rgba(255, 157, 102, 0.09);
+  color: #f2d7c8;
+}
+
+.inline-warning span {
+  color: #d9b7a8;
+  font-size: 14px;
 }
 
 .operator-toggle {
@@ -689,6 +789,10 @@ button {
   border: 1px solid #34383c;
   border-radius: 14px;
   background: #111315;
+}
+
+.stacked-mobile {
+  width: 100%;
 }
 
 @media (prefers-reduced-motion: reduce) {
