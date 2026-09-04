@@ -8,6 +8,7 @@ import {
   templates,
   type BoothSettings,
   type CameraSource,
+  type CloudStatus,
   type DriveStatus,
   type FilterId,
   type PhotoTemplate,
@@ -28,6 +29,7 @@ export default function App() {
   const [cameraSources, setCameraSources] = useState<CameraSource[]>([]);
   const [selectedCameraSourceId, setSelectedCameraSourceId] = useState("webcam:default");
   const [driveStatus, setDriveStatus] = useState<DriveStatus>({ mode: "mock" });
+  const [cloudStatus, setCloudStatus] = useState<CloudStatus>({ mode: "unconfigured" });
   const [step, setStep] = useState<Step>("welcome");
   const [templateId, setTemplateId] = useState(templates[0].id);
   const [filterId, setFilterId] = useState<FilterId>("original");
@@ -128,6 +130,7 @@ export default function App() {
     setCameraSources(snapshot.cameraSources);
     setSelectedCameraSourceId(snapshot.selectedCameraSourceId);
     setDriveStatus(snapshot.driveStatus);
+    setCloudStatus(snapshot.cloudStatus);
   }
 
   async function startCamera() {
@@ -450,6 +453,7 @@ export default function App() {
             <p className="body small">Satu folder Drive dibuat untuk sesi {session.id}. Link ini bisa dibuka siapa pun yang punya QR-nya.</p>
             {qrUrl ? <img className="qr-image" src={qrUrl} alt="QR untuk folder Google Drive sesi photobooth" /> : <div className="qr-placeholder" />}
             <p className="operator-help">{driveStatus.mode === "authenticated" ? "QR ini menuju folder Google Drive asli." : "QR ini masih memakai link mock sampai Google Drive login dan folder root dikonfigurasi."}</p>
+            <p className="operator-help">{cloudStatus.mode === "configured" ? `Cloudflare aktif di ${cloudStatus.baseUrl}. Publish akan diarahkan ke sana lebih dulu.` : "Cloudflare belum aktif. Publish akan memakai fallback lain."}</p>
             <button className="primary-button full" onClick={resetToWelcome}>Selesai</button>
           </div>
         </section>
@@ -496,6 +500,20 @@ export default function App() {
               </div>
             </div>
             <div className="operator-section">
+              <label>Cloudflare publish</label>
+              <div className="operator-list">
+                <div className="operator-row">
+                  <strong>Status</strong>
+                  <span>{cloudStatus.mode === "configured" ? "Aktif" : "Belum aktif"}</span>
+                </div>
+                <div className="operator-row">
+                  <strong>Endpoint</strong>
+                  <span>{cloudStatus.baseUrl || "Belum dikonfigurasi"}</span>
+                </div>
+              </div>
+              <p className="operator-help">Publish sesi sekarang diprioritaskan ke Cloudflare Worker pada subdomain photobooth. Google Drive tetap jadi fallback kedua.</p>
+            </div>
+            <div className="operator-section">
               <label>Google Drive</label>
               <div className="operator-list">
                 <div className="operator-row">
@@ -508,7 +526,7 @@ export default function App() {
                 </div>
                 <div className="operator-row">
                   <strong>Mode QR</strong>
-                  <span>{driveStatus.mode === "authenticated" ? "Google Drive nyata" : "Mock link"}</span>
+                  <span>{cloudStatus.mode === "configured" ? "Cloudflare domain" : driveStatus.mode === "authenticated" ? "Google Drive nyata" : "Mock link"}</span>
                 </div>
               </div>
               <div className="operator-camera-picker">

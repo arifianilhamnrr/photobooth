@@ -5,10 +5,11 @@ import { mkdir, mkdtemp, readFile, unlink } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { tmpdir } from "node:os";
 import { renderStrip } from "@photobooth/compositor";
-import { GoogleDriveService } from "@photobooth/drive";
+import { CloudflareUploadService, GoogleDriveService } from "@photobooth/drive";
 import {
   buildShotColor,
   type CameraSource,
+  type CloudStatus,
   createSessionId,
   defaultSettings,
   type DriveStatus,
@@ -38,6 +39,7 @@ const driveAuthPath = join(app.getPath("userData"), "drive-auth.json");
 const execFileAsync = promisify(execFile);
 let selectedCameraSourceId = "webcam:default";
 let database = openDatabase(databasePath);
+const cloudflareService = new CloudflareUploadService(process.env.PHOTOBOOTH_CLOUD_URL ?? "https://photobooth.collaborationday2026.web.id");
 const driveService = new GoogleDriveService(
   {
     clientId: process.env.GOOGLE_CLIENT_ID,
@@ -161,9 +163,22 @@ async function simulatePublish(sessionId: string): Promise<StoredSession> {
   const syncing = updateSession(session, { status: "sync_pending" });
   await saveSession(syncing);
 
+  const eventName = readSnapshotFromDatabase(database).settings.eventName;
+
+  const cloudStatus = cloudflareService.getStatus();
+  if (cloudStatus.mode === "configured") {
+    const result = await cloudflareService.publishSession(syncing, eventName);
+    const published = updateSession(syncing, {
+      status: "published",
+      driveUrl: result.folderUrl
+    });
+    await saveSession(published);
+    return published;
+  }
+
   const driveStatus = await driveService.getStatus();
   if (driveStatus.mode === "authenticated") {
-    const result = await driveService.publishSession({ session: syncing, eventName: readSnapshotFromDatabase(database).settings.eventName });
+    const result = await driveService.publishSession({ session: syncing, eventName });
     const published = updateSession(syncing, {
       status: "published",
       driveUrl: result.folderUrl
@@ -212,7 +227,8 @@ app.whenReady().then(() => {
       queue: queueFromSessions(store.sessions),
       cameraSources: await listCameraSources(),
       selectedCameraSourceId,
-      driveStatus: await driveService.getStatus()
+      driveStatus: await driveService.getStatus(),
+      cloudStatus: cloudflareService.getStatus()
     };
   });
   ipcMain.handle("settings:update", async (_event, settings: Partial<BoothSettings>) => {
@@ -287,6 +303,7 @@ app.whenReady().then(() => {
     return { selectedCameraSourceId };
   });
   ipcMain.handle("drive:get-status", async (): Promise<DriveStatus> => driveService.getStatus());
+  ipcMain.handle("cloud:get-status", async (): Promise<CloudStatus> => cloudflareService.getStatus());
   ipcMain.handle("drive:sign-in", async (): Promise<DriveStatus> => driveService.signIn());
   ipcMain.handle("drive:sign-out", async (): Promise<DriveStatus> => driveService.signOut());
   ipcMain.handle("drive:create-root-folder", async (_event, input: { name: string }): Promise<DriveStatus> => driveService.createRootFolder(input.name));

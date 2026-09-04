@@ -1,12 +1,12 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { BoothSettings, CameraSource, DriveStatus, QueueItem, StoredSession } from "@photobooth/domain";
+import type { BoothSettings, CameraSource, CloudStatus, DriveStatus, QueueItem, StoredSession } from "@photobooth/domain";
 
 contextBridge.exposeInMainWorld("photobooth", {
   system: {
     ping: () => ipcRenderer.invoke("system:ping") as Promise<{ ok: boolean }>
   },
   app: {
-    snapshot: () => ipcRenderer.invoke("app:snapshot") as Promise<{ settings: BoothSettings; sessions: StoredSession[]; queue: QueueItem[]; cameraSources: CameraSource[]; selectedCameraSourceId: string; driveStatus: DriveStatus }>
+    snapshot: () => ipcRenderer.invoke("app:snapshot") as Promise<{ settings: BoothSettings; sessions: StoredSession[]; queue: QueueItem[]; cameraSources: CameraSource[]; selectedCameraSourceId: string; driveStatus: DriveStatus; cloudStatus: CloudStatus }>
   },
   camera: {
     listSources: () => ipcRenderer.invoke("camera:list-sources") as Promise<CameraSource[]>,
@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld("photobooth", {
     signIn: () => ipcRenderer.invoke("drive:sign-in") as Promise<DriveStatus>,
     signOut: () => ipcRenderer.invoke("drive:sign-out") as Promise<DriveStatus>,
     createRootFolder: (name: string) => ipcRenderer.invoke("drive:create-root-folder", { name }) as Promise<DriveStatus>
+  },
+  cloud: {
+    getStatus: () => ipcRenderer.invoke("cloud:get-status") as Promise<CloudStatus>
   },
   settings: {
       update: (settings: Partial<BoothSettings>) => ipcRenderer.invoke("settings:update", settings) as Promise<BoothSettings>
@@ -42,7 +45,7 @@ declare global {
         ping(): Promise<{ ok: boolean }>;
       };
       app: {
-        snapshot(): Promise<{ settings: BoothSettings; sessions: StoredSession[]; queue: QueueItem[]; cameraSources: CameraSource[]; selectedCameraSourceId: string; driveStatus: DriveStatus }>;
+        snapshot(): Promise<{ settings: BoothSettings; sessions: StoredSession[]; queue: QueueItem[]; cameraSources: CameraSource[]; selectedCameraSourceId: string; driveStatus: DriveStatus; cloudStatus: CloudStatus }>;
       };
       camera: {
         listSources(): Promise<CameraSource[]>;
@@ -53,6 +56,9 @@ declare global {
         signIn(): Promise<DriveStatus>;
         signOut(): Promise<DriveStatus>;
         createRootFolder(name: string): Promise<DriveStatus>;
+      };
+      cloud: {
+        getStatus(): Promise<CloudStatus>;
       };
       settings: {
         update(settings: Partial<BoothSettings>): Promise<BoothSettings>;

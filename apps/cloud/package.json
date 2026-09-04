@@ -1,0 +1,20 @@
+{
+  "name": "@photobooth/cloud",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "wrangler deploy --dry-run",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "deploy": "wrangler deploy",
+    "db:migrate": "wrangler d1 execute photobooth-cloud --file ./schema.sql",
+    "db:migrate:remote": "wrangler d1 execute photobooth-cloud --remote --file ./schema.sql"
+  },
+  "dependencies": {
+    "hono": "^4.13.5"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260904.1",
+    "typescript": "^5.9.3"
+  }
+}

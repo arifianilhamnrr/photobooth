@@ -97,6 +97,11 @@ export interface DriveStatus {
   rootFolderName?: string;
 }
 
+export interface CloudStatus {
+  mode: "unconfigured" | "configured";
+  baseUrl?: string;
+}
+
 export interface AppSnapshot {
   settings: BoothSettings;
   sessions: StoredSession[];

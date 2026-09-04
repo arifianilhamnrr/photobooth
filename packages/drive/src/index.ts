@@ -4,6 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { google } from "googleapis";
 import type { DriveStatus, StoredSession } from "@photobooth/domain";
+export { CloudflareUploadService } from "./cloudflare";
 
 interface StoredDriveAuth {
   refresh_token?: string;

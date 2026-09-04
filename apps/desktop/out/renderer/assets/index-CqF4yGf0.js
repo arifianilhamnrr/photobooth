@@ -14647,6 +14647,7 @@ function App() {
   const [cameraSources, setCameraSources] = reactExports.useState([]);
   const [selectedCameraSourceId, setSelectedCameraSourceId] = reactExports.useState("webcam:default");
   const [driveStatus, setDriveStatus] = reactExports.useState({ mode: "mock" });
+  const [cloudStatus, setCloudStatus] = reactExports.useState({ mode: "unconfigured" });
   const [step, setStep] = reactExports.useState("welcome");
   const [templateId, setTemplateId] = reactExports.useState(templates[0].id);
   const [filterId, setFilterId] = reactExports.useState("original");
@@ -14733,6 +14734,7 @@ function App() {
     setCameraSources(snapshot.cameraSources);
     setSelectedCameraSourceId(snapshot.selectedCameraSourceId);
     setDriveStatus(snapshot.driveStatus);
+    setCloudStatus(snapshot.cloudStatus);
   }
   async function startCamera() {
     if (selectedCameraSourceId.startsWith("gphoto:")) {
@@ -15027,6 +15029,7 @@ function App() {
         ] }),
         qrUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx("img", { className: "qr-image", src: qrUrl, alt: "QR untuk folder Google Drive sesi photobooth" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "qr-placeholder" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "operator-help", children: driveStatus.mode === "authenticated" ? "QR ini menuju folder Google Drive asli." : "QR ini masih memakai link mock sampai Google Drive login dan folder root dikonfigurasi." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "operator-help", children: cloudStatus.mode === "configured" ? `Cloudflare aktif di ${cloudStatus.baseUrl}. Publish akan diarahkan ke sana lebih dulu.` : "Cloudflare belum aktif. Publish akan memakai fallback lain." }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button full", onClick: resetToWelcome, children: "Selesai" })
       ] })
     ] }),
@@ -15065,6 +15068,20 @@ function App() {
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-section", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { children: "Cloudflare publish" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-list", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-row", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Status" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: cloudStatus.mode === "configured" ? "Aktif" : "Belum aktif" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-row", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Endpoint" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: cloudStatus.baseUrl || "Belum dikonfigurasi" })
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "operator-help", children: "Publish sesi sekarang diprioritaskan ke Cloudflare Worker pada subdomain photobooth. Google Drive tetap jadi fallback kedua." })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-section", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("label", { children: "Google Drive" }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-list", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-row", children: [
@@ -15077,7 +15094,7 @@ function App() {
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-row", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Mode QR" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: driveStatus.mode === "authenticated" ? "Google Drive nyata" : "Mock link" })
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: cloudStatus.mode === "configured" ? "Cloudflare domain" : driveStatus.mode === "authenticated" ? "Google Drive nyata" : "Mock link" })
           ] })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-camera-picker", children: [

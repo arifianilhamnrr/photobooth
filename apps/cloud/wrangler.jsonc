@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "photobooth-cloud",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-04",
+  "account_id": "d63ada033477b8f094345bda9dd0487f",
+  "routes": [
+    {
+      "pattern": "photobooth.collaborationday2026.web.id/*",
+      "zone_name": "collaborationday2026.web.id"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "PHOTOBOOTH_BUCKET",
+      "bucket_name": "photobooth-collaborationday2026"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "PHOTOBOOTH_DB",
+      "database_name": "photobooth-cloud",
+      "database_id": "0ceda8e0-1861-455c-8366-0a9d0d1582fb"
+    }
+  ],
+  "vars": {
+    "PUBLIC_BASE_URL": "https://photobooth.collaborationday2026.web.id"
+  }
+}
