@@ -4,7 +4,6 @@ import { promisify } from "node:util";
 import { mkdir, mkdtemp, readFile, unlink } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { tmpdir } from "node:os";
-import { renderStrip } from "@photobooth/compositor";
 import { BrevoEmailService, CloudflareUploadService, GoogleDriveService } from "@photobooth/drive";
 import {
   buildShotColor,
@@ -34,7 +33,12 @@ import {
 let mainWindow: BrowserWindow | null = null;
 const databasePath = join(app.getPath("userData"), "photobooth.sqlite");
 const sessionsBaseDir = join(app.getPath("userData"), "sessions");
-const overlayPath = join(app.getAppPath(), "src/renderer/assets/photobhoot-transparent.png");
+const overlayPath = app.isPackaged
+  ? join(process.resourcesPath, "photobhoot-transparent.png")
+  : join(app.getAppPath(), "src/renderer/assets/photobhoot-transparent.png");
+const stripRendererPath = app.isPackaged
+  ? join(process.resourcesPath, "render-strip.cjs")
+  : join(app.getAppPath(), "resources", "render-strip.cjs");
 const driveAuthPath = join(app.getPath("userData"), "drive-auth.json");
 const iconPath = join(app.getAppPath(), "resources", process.platform === "win32" ? "icon.ico" : "icon.png");
 const execFileAsync = promisify(execFile);
@@ -132,7 +136,14 @@ async function renderFinalStripForSession(session: StoredSession): Promise<Store
   const template = getTemplate(session.templateId);
   const { sessionDir, outputDir } = await ensureSessionDirectories(sessionsBaseDir, session.id);
   const outputPath = join(outputDir, "strip.jpg");
-  await renderStrip({
+  const renderer = (await import(stripRendererPath)) as { renderStrip: (input: {
+    template: ReturnType<typeof getTemplate>;
+    shots: StoredShot[];
+    filterId: FilterId;
+    overlayPath: string;
+    outputPath: string;
+  }) => Promise<void> };
+  await renderer.renderStrip({
     template,
     shots: session.shots,
     filterId: session.filterId,
@@ -236,7 +247,13 @@ async function createWindow() {
     }
   });
 
-  await mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL ?? `file://${join(__dirname, "../renderer/index.html")}`);
+  const rendererUrl = process.env.ELECTRON_RENDERER_URL;
+  if (rendererUrl) {
+    await mainWindow.loadURL(rendererUrl);
+    return;
+  }
+
+  await mainWindow.loadFile(join(app.getAppPath(), "out", "renderer", "index.html"));
 }
 
 app.whenReady().then(() => {

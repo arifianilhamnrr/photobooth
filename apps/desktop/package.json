@@ -23,6 +23,8 @@
     "@photobooth/domain": "*",
     "@photobooth/drive": "*",
     "@photobooth/storage": "*",
+    "@img/sharp-libvips-linux-x64": "1.2.4",
+    "@img/sharp-linux-x64": "0.34.5",
     "googleapis": "^178.0.0",
     "node-addon-api": "^8.5.0",
     "nodemailer": "^7.0.5",
@@ -65,6 +67,7 @@
     "directories": {
       "output": "release"
     },
+    "asar": false,
     "files": [
       "dist/**",
       "out/renderer/**",
@@ -77,6 +80,10 @@
       {
         "from": "src/renderer/assets/photobhoot-transparent.png",
         "to": "photobhoot-transparent.png"
+      },
+      {
+        "from": "resources/render-strip.cjs",
+        "to": "render-strip.cjs"
       }
     ],
     "win": {

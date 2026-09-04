@@ -13,7 +13,13 @@ const aliases = {
 export default defineConfig({
   main: {
     build: {
-      outDir: "dist/main"
+      outDir: "dist/main",
+      rollupOptions: {
+        external: [
+          "sharp",
+          /^@img\//
+        ]
+      }
     },
     resolve: {
       alias: aliases
