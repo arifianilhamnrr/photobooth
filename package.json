@@ -10,7 +10,10 @@
     "dev": "npm run dev -w @photobooth/desktop",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present"
+    "test": "npm run test --workspaces --if-present",
+    "package:linux": "npm run dist -w @photobooth/desktop",
+    "install:linux-deb": "sudo apt install -y \"./apps/desktop/release/collaboration-day-photobooth_0.1.0_amd64.deb\"",
+    "release:status": "ls \"/home/ar/Projects/photobooth/apps/desktop/release\""
   },
   "engines": {
     "node": ">=20"
