@@ -12,6 +12,7 @@ export class CloudflareUploadService {
   async publishSession(session: StoredSession, eventName: string): Promise<{ folderUrl: string }> {
     if (!this.baseUrl) throw new Error("Cloudflare upload belum dikonfigurasi");
     if (!session.finalStripPath) throw new Error("Strip final belum tersedia");
+    if (!session.recipientEmail) throw new Error("Email penerima belum tersedia");
 
     const stripBase64 = (await readFile(session.finalStripPath)).toString("base64");
     const originals = await Promise.all(
@@ -31,6 +32,7 @@ export class CloudflareUploadService {
       body: JSON.stringify({
         sessionId: session.id,
         eventName,
+        recipientEmail: session.recipientEmail,
         stripBase64,
         originals
       })

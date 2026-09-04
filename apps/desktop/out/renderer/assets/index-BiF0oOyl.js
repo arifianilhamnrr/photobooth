@@ -14661,6 +14661,8 @@ function App() {
   const [cameraError, setCameraError] = reactExports.useState("");
   const [cameraReady, setCameraReady] = reactExports.useState(false);
   const [cameraLabel, setCameraLabel] = reactExports.useState("Kamera belum dipilih");
+  const [recipientEmail, setRecipientEmail] = reactExports.useState("");
+  const [emailError, setEmailError] = reactExports.useState("");
   const videoRef = reactExports.useRef(null);
   const streamRef = reactExports.useRef(null);
   const template = reactExports.useMemo(() => getTemplate(session?.templateId ?? templateId), [session?.templateId, templateId]);
@@ -14798,6 +14800,8 @@ function App() {
     setCountdown(settings.countdownSeconds);
     setReplaceIndex(null);
     setQrUrl("");
+    setRecipientEmail("");
+    setEmailError("");
     setQueueStatus("Pilih template untuk sesi ini.");
     setStep(templates.length > 1 ? "template" : "ready");
   }
@@ -14814,11 +14818,21 @@ function App() {
     setQueueStatus(`Mengulang foto ${shotIndex + 1}.`);
     setStep("capture");
   }
-  async function finishReview() {
+  function finishReview() {
     if (!session || shots.length !== template.captureCount) return;
+    setEmailError("");
+    setStep("email");
+  }
+  async function submitEmailAndPublish() {
+    if (!session) return;
+    const email = recipientEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailError("Masukkan email yang valid dulu.");
+      return;
+    }
     setStep("saving");
-    setQueueStatus("Foto kamu sudah aman. Sedang menyiapkan link folder Google Drive.");
-    const published = await window.photobooth.sessions.publish({ sessionId: session.id });
+    setQueueStatus("Foto kamu sudah aman. Kami sedang mengirim link ke email kamu.");
+    const published = await window.photobooth.sessions.publish({ sessionId: session.id, recipientEmail: email });
     setSession(published);
     updateSessionCollection(published);
     setQueue((current) => {
@@ -14832,7 +14846,7 @@ function App() {
       return [nextItem, ...current.filter((item) => item.sessionId !== published.id)];
     });
     setStep("result");
-    setQueueStatus("Folder Google Drive siap dibuka.");
+    setQueueStatus("Link hasil siap dan email sudah diproses.");
   }
   function resetToWelcome() {
     setSession(null);
@@ -15011,11 +15025,40 @@ function App() {
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button full", onClick: () => void finishReview(), children: "Gunakan hasil ini" })
       ] })
     ] }),
+    step === "email" && session && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "result-layout screen-card", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "result-board narrow", children: session.finalStripDataUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx(FinalStripImage, { dataUrl: session.finalStripDataUrl }) : /* @__PURE__ */ jsxRuntimeExports.jsx(StripShowcase, { template, shots, filterCss: filter.cssFilter }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "qr-panel", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "KIRIM LINK" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "Masukkan email dulu." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Link download hasil photobooth akan dikirim ke email ini lewat Brevo. Setelah itu QR tetap bisa dipindai di layar berikutnya." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "input-label", htmlFor: "recipient-email", children: "Email penerima" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            id: "recipient-email",
+            className: "email-input",
+            type: "email",
+            value: recipientEmail,
+            onChange: (event) => {
+              setRecipientEmail(event.target.value);
+              if (emailError) setEmailError("");
+            },
+            placeholder: "nama@email.com",
+            autoFocus: true
+          }
+        ),
+        emailError ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "error-text", children: emailError }) : /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "operator-help", children: "Contoh: nama@email.com" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "dual-actions stacked-mobile", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", onClick: () => setStep("review"), children: "Kembali" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: () => void submitEmailAndPublish(), children: "Kirim link" })
+        ] })
+      ] })
+    ] }),
     step === "saving" && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "saving-layout screen-card centered", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "saving-orb" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "MENYIMPAN" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "Foto kamu sudah aman." }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Kami sedang membuat folder Google Drive untuk sesi ini lalu mengunggah strip final dan foto terpilih." })
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Kami sedang mengunggah hasil dan mengirim link download ke email yang kamu isi." })
     ] }),
     step === "result" && session && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "result-layout screen-card", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "result-board narrow", children: session.finalStripDataUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx(FinalStripImage, { dataUrl: session.finalStripDataUrl }) : /* @__PURE__ */ jsxRuntimeExports.jsx(StripShowcase, { template, shots, filterCss: filter.cssFilter }) }),
@@ -15023,12 +15066,13 @@ function App() {
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "QR SIAP" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "Scan untuk ambil fotomu." }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "body small", children: [
-          "Satu folder Drive dibuat untuk sesi ",
+          "Link hasil sesi ",
           session.id,
-          ". Link ini bisa dibuka siapa pun yang punya QR-nya."
+          " sudah siap. ",
+          session.recipientEmail ? `Kami juga kirim link ini ke ${session.recipientEmail}.` : "Link ini tetap bisa dibuka siapa pun yang punya QR-nya."
         ] }),
         qrUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx("img", { className: "qr-image", src: qrUrl, alt: "QR untuk folder Google Drive sesi photobooth" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "qr-placeholder" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "operator-help", children: driveStatus.mode === "authenticated" ? "QR ini menuju folder Google Drive asli." : "QR ini masih memakai link mock sampai Google Drive login dan folder root dikonfigurasi." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "operator-help", children: driveStatus.mode === "authenticated" ? "QR ini menuju folder Google Drive asli." : "QR ini akan menuju Cloudflare domain atau fallback yang aktif." }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "operator-help", children: cloudStatus.mode === "configured" ? `Cloudflare aktif di ${cloudStatus.baseUrl}. Publish akan diarahkan ke sana lebih dulu.` : "Cloudflare belum aktif. Publish akan memakai fallback lain." }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button full", onClick: resetToWelcome, children: "Selesai" })
       ] })
@@ -15080,6 +15124,14 @@ function App() {
           ] })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "operator-help", children: "Publish sesi sekarang diprioritaskan ke Cloudflare Worker pada subdomain photobooth. Google Drive tetap jadi fallback kedua." })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-section", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { children: "Email delivery" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "operator-list", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-row", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Status" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Gunakan SMTP Brevo pada desktop app" })
+        ] }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "operator-help", children: "Set env `BREVO_API_KEY`, `BREVO_SMTP_LOGIN`, `BREVO_SENDER_EMAIL`, dan opsional `BREVO_SENDER_NAME` saat menjalankan app. Publish akan mengirim link download lewat SMTP Brevo setelah URL Cloudflare siap." })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-section", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("label", { children: "Google Drive" }),

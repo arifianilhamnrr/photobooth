@@ -630,6 +630,36 @@ button {
   line-height: 1.5;
 }
 
+.input-label {
+  margin-top: 18px;
+  margin-bottom: 10px;
+  color: #f2f1ed;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.email-input {
+  width: 100%;
+  min-height: 58px;
+  padding: 0 18px;
+  border: 1px solid #34383c;
+  border-radius: 14px;
+  background: #111315;
+  color: #f2f1ed;
+  font-size: 18px;
+}
+
+.email-input:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent-color) 55%, white);
+  outline-offset: 2px;
+}
+
+.error-text {
+  margin: 10px 0 0;
+  color: #ff9680;
+  font-size: 14px;
+}
+
 .operator-section input[type="color"] {
   width: 88px;
   height: 48px;

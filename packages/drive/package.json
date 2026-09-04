@@ -4,7 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "dependencies": {
-    "googleapis": "^178.0.0"
+    "googleapis": "^178.0.0",
+    "nodemailer": "^7.0.5"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^7.0.3"
   },
   "scripts": {
     "typecheck": "tsc --project tsconfig.json --noEmit"

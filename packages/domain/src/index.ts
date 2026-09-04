@@ -60,6 +60,7 @@ export interface StoredSession {
   status: SessionStatus;
   createdAt: string;
   updatedAt: string;
+  recipientEmail?: string;
   driveUrl?: string;
   finalStripPath?: string;
   finalStripDataUrl?: string;

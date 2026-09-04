@@ -17,7 +17,7 @@ import {
   type StoredShot
 } from "@photobooth/domain";
 
-type Step = "welcome" | "template" | "ready" | "capture" | "review" | "saving" | "result";
+type Step = "welcome" | "template" | "ready" | "capture" | "review" | "email" | "saving" | "result";
 
 const CAPTURE_INTERVAL_MS = 900;
 
@@ -43,6 +43,8 @@ export default function App() {
   const [cameraError, setCameraError] = useState<string>("");
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraLabel, setCameraLabel] = useState("Kamera belum dipilih");
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -199,6 +201,8 @@ export default function App() {
     setCountdown(settings.countdownSeconds);
     setReplaceIndex(null);
     setQrUrl("");
+    setRecipientEmail("");
+    setEmailError("");
     setQueueStatus("Pilih template untuk sesi ini.");
     setStep(templates.length > 1 ? "template" : "ready");
   }
@@ -218,11 +222,22 @@ export default function App() {
     setStep("capture");
   }
 
-  async function finishReview() {
+  function finishReview() {
     if (!session || shots.length !== template.captureCount) return;
+    setEmailError("");
+    setStep("email");
+  }
+
+  async function submitEmailAndPublish() {
+    if (!session) return;
+    const email = recipientEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailError("Masukkan email yang valid dulu.");
+      return;
+    }
     setStep("saving");
-    setQueueStatus("Foto kamu sudah aman. Sedang menyiapkan link folder Google Drive.");
-    const published = await window.photobooth.sessions.publish({ sessionId: session.id });
+    setQueueStatus("Foto kamu sudah aman. Kami sedang mengirim link ke email kamu.");
+    const published = await window.photobooth.sessions.publish({ sessionId: session.id, recipientEmail: email });
     setSession(published);
     updateSessionCollection(published);
     setQueue((current) => {
@@ -236,7 +251,7 @@ export default function App() {
       return [nextItem, ...current.filter((item) => item.sessionId !== published.id)];
     });
     setStep("result");
-    setQueueStatus("Folder Google Drive siap dibuka.");
+    setQueueStatus("Link hasil siap dan email sudah diproses.");
   }
 
   function resetToWelcome() {
@@ -433,12 +448,43 @@ export default function App() {
         </section>
       )}
 
+      {step === "email" && session && (
+        <section className="result-layout screen-card">
+          <div className="result-board narrow">
+            {session.finalStripDataUrl ? <FinalStripImage dataUrl={session.finalStripDataUrl} /> : <StripShowcase template={template} shots={shots} filterCss={filter.cssFilter} />}
+          </div>
+          <div className="qr-panel">
+            <p className="eyebrow">KIRIM LINK</p>
+            <h2>Masukkan email dulu.</h2>
+            <p className="body small">Link download hasil photobooth akan dikirim ke email ini lewat Brevo. Setelah itu QR tetap bisa dipindai di layar berikutnya.</p>
+            <label className="input-label" htmlFor="recipient-email">Email penerima</label>
+            <input
+              id="recipient-email"
+              className="email-input"
+              type="email"
+              value={recipientEmail}
+              onChange={(event) => {
+                setRecipientEmail(event.target.value);
+                if (emailError) setEmailError("");
+              }}
+              placeholder="nama@email.com"
+              autoFocus
+            />
+            {emailError ? <p className="error-text">{emailError}</p> : <p className="operator-help">Contoh: nama@email.com</p>}
+            <div className="dual-actions stacked-mobile">
+              <button className="secondary-button" onClick={() => setStep("review")}>Kembali</button>
+              <button className="primary-button" onClick={() => void submitEmailAndPublish()}>Kirim link</button>
+            </div>
+          </div>
+        </section>
+      )}
+
       {step === "saving" && (
         <section className="saving-layout screen-card centered">
           <div className="saving-orb" />
           <p className="eyebrow">MENYIMPAN</p>
           <h2>Foto kamu sudah aman.</h2>
-          <p className="body small">Kami sedang membuat folder Google Drive untuk sesi ini lalu mengunggah strip final dan foto terpilih.</p>
+          <p className="body small">Kami sedang mengunggah hasil dan mengirim link download ke email yang kamu isi.</p>
         </section>
       )}
 
@@ -450,9 +496,9 @@ export default function App() {
           <div className="qr-panel">
             <p className="eyebrow">QR SIAP</p>
             <h2>Scan untuk ambil fotomu.</h2>
-            <p className="body small">Satu folder Drive dibuat untuk sesi {session.id}. Link ini bisa dibuka siapa pun yang punya QR-nya.</p>
+            <p className="body small">Link hasil sesi {session.id} sudah siap. {session.recipientEmail ? `Kami juga kirim link ini ke ${session.recipientEmail}.` : "Link ini tetap bisa dibuka siapa pun yang punya QR-nya."}</p>
             {qrUrl ? <img className="qr-image" src={qrUrl} alt="QR untuk folder Google Drive sesi photobooth" /> : <div className="qr-placeholder" />}
-            <p className="operator-help">{driveStatus.mode === "authenticated" ? "QR ini menuju folder Google Drive asli." : "QR ini masih memakai link mock sampai Google Drive login dan folder root dikonfigurasi."}</p>
+            <p className="operator-help">{driveStatus.mode === "authenticated" ? "QR ini menuju folder Google Drive asli." : "QR ini akan menuju Cloudflare domain atau fallback yang aktif."}</p>
             <p className="operator-help">{cloudStatus.mode === "configured" ? `Cloudflare aktif di ${cloudStatus.baseUrl}. Publish akan diarahkan ke sana lebih dulu.` : "Cloudflare belum aktif. Publish akan memakai fallback lain."}</p>
             <button className="primary-button full" onClick={resetToWelcome}>Selesai</button>
           </div>
@@ -512,6 +558,16 @@ export default function App() {
                 </div>
               </div>
               <p className="operator-help">Publish sesi sekarang diprioritaskan ke Cloudflare Worker pada subdomain photobooth. Google Drive tetap jadi fallback kedua.</p>
+            </div>
+            <div className="operator-section">
+              <label>Email delivery</label>
+              <div className="operator-list">
+                <div className="operator-row">
+                  <strong>Status</strong>
+                  <span>Gunakan SMTP Brevo pada desktop app</span>
+                </div>
+              </div>
+              <p className="operator-help">Set env `BREVO_API_KEY`, `BREVO_SMTP_LOGIN`, `BREVO_SENDER_EMAIL`, dan opsional `BREVO_SENDER_NAME` saat menjalankan app. Publish akan mengirim link download lewat SMTP Brevo setelah URL Cloudflare siap.</p>
             </div>
             <div className="operator-section">
               <label>Google Drive</label>

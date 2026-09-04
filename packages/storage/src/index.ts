@@ -90,6 +90,7 @@ export function openDatabase(filePath: string): DatabaseSync {
       status TEXT NOT NULL,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
+      recipient_email TEXT,
       drive_url TEXT,
       final_strip_path TEXT,
       final_strip_data_url TEXT,
@@ -114,13 +115,19 @@ export function openDatabase(filePath: string): DatabaseSync {
   if (!row) {
     database.prepare("INSERT INTO app_settings (id, settings_json) VALUES (1, ?)").run(JSON.stringify(defaultSettings));
   }
+
+  const sessionColumns = database.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>;
+  if (!sessionColumns.some((column) => column.name === "recipient_email")) {
+    database.exec("ALTER TABLE sessions ADD COLUMN recipient_email TEXT");
+  }
+
   return database;
 }
 
 export function readSnapshotFromDatabase(database: DatabaseSync): PersistedStore {
   const settingsRow = database.prepare("SELECT settings_json FROM app_settings WHERE id = 1").get() as { settings_json: string };
   const sessionRows = database.prepare(`
-    SELECT id, template_id, filter_id, status, created_at, updated_at, drive_url, final_strip_path, final_strip_data_url, session_dir
+    SELECT id, template_id, filter_id, status, created_at, updated_at, recipient_email, drive_url, final_strip_path, final_strip_data_url, session_dir
     FROM sessions
     ORDER BY created_at DESC
   `).all() as Array<{
@@ -130,6 +137,7 @@ export function readSnapshotFromDatabase(database: DatabaseSync): PersistedStore
     status: StoredSession["status"];
     created_at: string;
     updated_at: string;
+    recipient_email: string | null;
     drive_url: string | null;
     final_strip_path: string | null;
     final_strip_data_url: string | null;
@@ -157,6 +165,7 @@ export function readSnapshotFromDatabase(database: DatabaseSync): PersistedStore
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    recipientEmail: row.recipient_email ?? undefined,
     driveUrl: row.drive_url ?? undefined,
     finalStripPath: row.final_strip_path ?? undefined,
     finalStripDataUrl: row.final_strip_data_url ?? undefined,
@@ -188,14 +197,15 @@ export function writeSettingsToDatabase(database: DatabaseSync, settings: Persis
 
 export function upsertSessionInDatabase(database: DatabaseSync, session: StoredSession): StoredSession {
   const saveSession = database.prepare(`
-    INSERT INTO sessions (id, template_id, filter_id, status, created_at, updated_at, drive_url, final_strip_path, final_strip_data_url, session_dir)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO sessions (id, template_id, filter_id, status, created_at, updated_at, recipient_email, drive_url, final_strip_path, final_strip_data_url, session_dir)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       template_id = excluded.template_id,
       filter_id = excluded.filter_id,
       status = excluded.status,
       created_at = excluded.created_at,
       updated_at = excluded.updated_at,
+      recipient_email = excluded.recipient_email,
       drive_url = excluded.drive_url,
       final_strip_path = excluded.final_strip_path,
       final_strip_data_url = excluded.final_strip_data_url,
@@ -224,6 +234,7 @@ export function upsertSessionInDatabase(database: DatabaseSync, session: StoredS
       session.status,
       session.createdAt,
       session.updatedAt,
+      session.recipientEmail ?? null,
       session.driveUrl ?? null,
       session.finalStripPath ?? null,
       session.finalStripDataUrl ?? null,

@@ -5,6 +5,7 @@ import { dirname } from "node:path";
 import { google } from "googleapis";
 import type { DriveStatus, StoredSession } from "@photobooth/domain";
 export { CloudflareUploadService } from "./cloudflare";
+export { BrevoEmailService } from "./brevo";
 
 interface StoredDriveAuth {
   refresh_token?: string;

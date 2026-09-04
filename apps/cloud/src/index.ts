@@ -14,6 +14,7 @@ app.post("/api/sessions", async (c) => {
   const body = await c.req.json<{
     sessionId: string;
     eventName: string;
+    recipientEmail: string;
     stripBase64: string;
     originals: Array<{ name: string; base64: string }>;
   }>();
@@ -39,18 +40,19 @@ app.post("/api/sessions", async (c) => {
   const publicUrl = `${c.env.PUBLIC_BASE_URL}/s/${body.sessionId}`;
 
   await c.env.PHOTOBOOTH_DB.prepare(
-    `INSERT OR REPLACE INTO sessions (id, event_name, created_at, strip_key, strip_url, photo_count, status, metadata_json)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT OR REPLACE INTO sessions (id, event_name, created_at, recipient_email, strip_key, strip_url, photo_count, status, metadata_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
       body.sessionId,
       body.eventName,
       createdAt,
+      body.recipientEmail,
       stripKey,
       publicUrl,
       body.originals.length,
       "published",
-      JSON.stringify({ originals: body.originals.map((item) => item.name) })
+      JSON.stringify({ originals: body.originals.map((item) => item.name), email: { status: "pending_desktop_delivery" } })
     )
     .run();
 
@@ -63,13 +65,14 @@ app.post("/api/sessions", async (c) => {
 app.get("/s/:sessionId", async (c) => {
   const sessionId = c.req.param("sessionId");
   const session = await c.env.PHOTOBOOTH_DB.prepare(
-    "SELECT id, event_name, created_at, strip_key, strip_url, photo_count, status, metadata_json FROM sessions WHERE id = ?"
+    "SELECT id, event_name, created_at, recipient_email, strip_key, strip_url, photo_count, status, metadata_json FROM sessions WHERE id = ?"
   )
     .bind(sessionId)
     .first<{
       id: string;
       event_name: string;
       created_at: string;
+      recipient_email: string | null;
       strip_key: string;
       strip_url: string;
       photo_count: number;
@@ -101,6 +104,7 @@ app.get("/s/:sessionId", async (c) => {
         <h1>Hasil photobooth kamu siap</h1>
         <p>${session.event_name} · ${session.id}</p>
         ${imageUrl ? `<img src="${imageUrl}" alt="Hasil strip photobooth" />` : "<p>Strip belum tersedia.</p>"}
+        ${session.recipient_email ? `<p>Link ini juga dikirim ke ${session.recipient_email}.</p>` : ""}
         <p>Kamu bisa tekan lama atau simpan gambar ini ke perangkatmu.</p>
       </main>
     </body>

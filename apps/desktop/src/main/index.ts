@@ -5,7 +5,7 @@ import { mkdir, mkdtemp, readFile, unlink } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { tmpdir } from "node:os";
 import { renderStrip } from "@photobooth/compositor";
-import { CloudflareUploadService, GoogleDriveService } from "@photobooth/drive";
+import { BrevoEmailService, CloudflareUploadService, GoogleDriveService } from "@photobooth/drive";
 import {
   buildShotColor,
   type CameraSource,
@@ -40,6 +40,12 @@ const execFileAsync = promisify(execFile);
 let selectedCameraSourceId = "webcam:default";
 let database = openDatabase(databasePath);
 const cloudflareService = new CloudflareUploadService(process.env.PHOTOBOOTH_CLOUD_URL ?? "https://photobooth.collaborationday2026.web.id");
+const brevoEmailService = new BrevoEmailService({
+  apiKey: process.env.BREVO_API_KEY,
+  smtpLogin: process.env.BREVO_SMTP_LOGIN ?? "ab3ed4001@smtp-brevo.com",
+  senderEmail: process.env.BREVO_SENDER_EMAIL ?? "noreply@collaborationday2026.web.id",
+  senderName: process.env.BREVO_SENDER_NAME ?? "Collaboration Day 2026 Photobooth"
+});
 const driveService = new GoogleDriveService(
   {
     clientId: process.env.GOOGLE_CLIENT_ID,
@@ -64,6 +70,7 @@ interface CaptureShotInput {
 
 interface PublishSessionInput {
   sessionId: string;
+  recipientEmail: string;
 }
 
 interface UpdateSessionConfigInput {
@@ -168,6 +175,14 @@ async function simulatePublish(sessionId: string): Promise<StoredSession> {
   const cloudStatus = cloudflareService.getStatus();
   if (cloudStatus.mode === "configured") {
     const result = await cloudflareService.publishSession(syncing, eventName);
+    if (syncing.recipientEmail) {
+      await brevoEmailService.sendDownloadLink({
+        to: syncing.recipientEmail,
+        eventName,
+        sessionId: syncing.id,
+        publicUrl: result.folderUrl
+      });
+    }
     const published = updateSession(syncing, {
       status: "published",
       driveUrl: result.folderUrl
@@ -195,6 +210,10 @@ async function simulatePublish(sessionId: string): Promise<StoredSession> {
   });
   await saveSession(published);
   return published;
+}
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 async function createWindow() {
@@ -281,8 +300,13 @@ app.whenReady().then(() => {
   });
   ipcMain.handle("session:publish", async (_event, input: PublishSessionInput) => {
     const session = await getSession(input.sessionId);
+    const recipientEmail = input.recipientEmail.trim().toLowerCase();
+    if (!isValidEmail(recipientEmail)) {
+      throw new Error("Email tidak valid");
+    }
     const rendered = session.finalStripPath ? session : await renderFinalStripForSession(session);
-    await saveSession(rendered);
+    const withEmail = updateSession(rendered, { recipientEmail });
+    await saveSession(withEmail);
     return simulatePublish(input.sessionId);
   });
   ipcMain.handle("session:update-config", async (_event, input: UpdateSessionConfigInput) => {
