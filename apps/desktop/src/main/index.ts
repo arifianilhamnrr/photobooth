@@ -33,9 +33,6 @@ import {
 let mainWindow: BrowserWindow | null = null;
 const databasePath = join(app.getPath("userData"), "photobooth.sqlite");
 const sessionsBaseDir = join(app.getPath("userData"), "sessions");
-const overlayPath = app.isPackaged
-  ? join(process.resourcesPath, "photobhoot-transparent.png")
-  : join(app.getAppPath(), "src/renderer/assets/photobhoot-transparent.png");
 const stripRendererPath = app.isPackaged
   ? join(process.resourcesPath, "render-strip.cjs")
   : join(app.getAppPath(), "resources", "render-strip.cjs");
@@ -133,7 +130,15 @@ async function saveSession(session: StoredSession) {
 }
 
 async function renderFinalStripForSession(session: StoredSession): Promise<StoredSession> {
-  const template = getTemplate(session.templateId);
+  const baseTemplate = getTemplate(session.templateId);
+  const settings = readSnapshotFromDatabase(database).settings;
+  const template = {
+    ...baseTemplate,
+    slots: settings.slotOverrides[baseTemplate.id] ?? baseTemplate.slots
+  };
+  const overlayPath = app.isPackaged
+    ? join(process.resourcesPath, "frames", template.overlayAsset)
+    : join(app.getAppPath(), "src", "renderer", "assets", "frames", template.overlayAsset);
   const { sessionDir, outputDir } = await ensureSessionDirectories(sessionsBaseDir, session.id);
   const outputPath = join(outputDir, "strip.jpg");
   const renderer = (await import(stripRendererPath)) as { renderStrip: (input: {

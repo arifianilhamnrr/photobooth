@@ -242,6 +242,54 @@ button {
   gap: 18px;
 }
 
+.compact-template-step {
+  grid-template-rows: auto 1fr auto;
+}
+
+.compact-head {
+  align-items: end;
+}
+
+.compact-template-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.compact-template-card {
+  grid-template-rows: 142px auto;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 12px;
+  justify-items: center;
+  align-content: start;
+}
+
+.compact-template-card .template-meta {
+  width: 100%;
+}
+
+.compact-template-card .template-meta strong {
+  font-size: 16px;
+}
+
+.compact-template-card .template-meta p {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.compact-actions {
+  align-items: flex-end;
+}
+
+.compact-dual-actions {
+  justify-content: flex-end;
+}
+
 .template-card {
   display: grid;
   grid-template-columns: 180px 1fr;
@@ -631,6 +679,13 @@ button {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
 }
 
+.strip-slot.editing {
+  z-index: 2;
+  outline: 3px solid #ff7048;
+  outline-offset: -3px;
+  box-shadow: 0 0 0 3px rgba(16, 17, 18, 0.72);
+}
+
 .strip-image {
   width: 100%;
   height: 100%;
@@ -803,6 +858,75 @@ button {
   border: 1px solid #34383c;
   border-radius: 14px;
   background: #111315;
+}
+
+.slot-editor-section {
+  padding-top: 4px;
+}
+
+.slot-editor-layout {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.slot-editor-preview {
+  display: grid;
+  place-items: start center;
+  min-height: 282px;
+  padding: 8px;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid #34383c;
+  background: #0e1011;
+}
+
+.slot-editor-controls {
+  display: grid;
+  gap: 12px;
+}
+
+.slot-editor-controls select,
+.slot-fields input {
+  min-height: 42px;
+  width: 100%;
+  padding: 0 12px;
+  border: 1px solid #41464b;
+  border-radius: 10px;
+  background: #111315;
+  color: #f2f1ed;
+}
+
+.slot-selector {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+.slot-selector .chip-button {
+  min-height: 38px;
+  padding: 0;
+}
+
+.slot-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.slot-fields label {
+  display: grid;
+  gap: 5px;
+}
+
+.slot-fields label:last-child {
+  grid-column: 1 / -1;
+}
+
+.slot-fields span {
+  color: #9ea5a9;
+  font-size: 12px;
 }
 
 .stacked-mobile {

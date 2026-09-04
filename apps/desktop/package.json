@@ -79,8 +79,8 @@
     "electronVersion": "44.2.0",
     "extraResources": [
       {
-        "from": "src/renderer/assets/photobhoot-transparent.png",
-        "to": "photobhoot-transparent.png"
+        "from": "src/renderer/assets/frames",
+        "to": "frames"
       },
       {
         "from": "resources/render-strip.cjs",

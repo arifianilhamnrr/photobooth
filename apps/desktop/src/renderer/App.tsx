@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
+import frame1Url from "./assets/frames/frame-1.png";
 import frame2Url from "./assets/frames/frame-2.png";
 import frame3Url from "./assets/frames/frame-3.png";
 import frame4Url from "./assets/frames/frame-4.png";
@@ -17,7 +18,8 @@ import {
   type PhotoTemplate,
   type QueueItem,
   type StoredSession,
-  type StoredShot
+  type StoredShot,
+  type TemplateSlot
 } from "@photobooth/domain";
 
 type Step = "welcome" | "template" | "ready" | "capture" | "review" | "email" | "saving" | "result";
@@ -25,6 +27,7 @@ type Step = "welcome" | "template" | "ready" | "capture" | "review" | "email" | 
 const CAPTURE_INTERVAL_MS = 900;
 
 const frameAssets: Record<string, string> = {
+  "frame-1.png": frame1Url,
   "frame-2.png": frame2Url,
   "frame-3.png": frame3Url,
   "frame-4.png": frame4Url,
@@ -57,10 +60,20 @@ export default function App() {
   const [recipientEmail, setRecipientEmail] = useState("");
   const [emailError, setEmailError] = useState("");
   const [kioskEnabled, setKioskEnabled] = useState(true);
+  const [editorTemplateId, setEditorTemplateId] = useState(templates[0].id);
+  const [editorSlotIndex, setEditorSlotIndex] = useState(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const template = useMemo<PhotoTemplate>(() => getTemplate(session?.templateId ?? templateId), [session?.templateId, templateId]);
+  const template = useMemo<PhotoTemplate>(() => {
+    const base = getTemplate(session?.templateId ?? templateId);
+    return { ...base, slots: settings.slotOverrides[base.id] ?? base.slots };
+  }, [session?.templateId, settings.slotOverrides, templateId]);
+  const editorTemplate = useMemo<PhotoTemplate>(() => {
+    const base = getTemplate(editorTemplateId);
+    return { ...base, slots: settings.slotOverrides[base.id] ?? base.slots };
+  }, [editorTemplateId, settings.slotOverrides]);
+  const editorSlot = editorTemplate.slots[editorSlotIndex] ?? editorTemplate.slots[0];
   const filter = useMemo(() => filters.find((item) => item.id === (session?.filterId ?? filterId)) ?? filters[0], [filterId, session?.filterId]);
   const shots = session?.shots ?? [];
 
@@ -209,7 +222,7 @@ export default function App() {
   }
 
   async function startSession() {
-    const defaultTemplateId = templates[1]?.id ?? templates[0].id;
+    const defaultTemplateId = templates.find((item) => item.id === "frame-3")?.id ?? templates[0].id;
     setTemplateId(defaultTemplateId);
     const nextSession = await window.photobooth.sessions.create({ templateId: defaultTemplateId, filterId });
     setSession(nextSession);
@@ -326,6 +339,20 @@ export default function App() {
     setKioskEnabled(result.kiosk);
   }
 
+  async function updateEditorSlot(changes: Partial<TemplateSlot>) {
+    const slots = editorTemplate.slots.map((slot, index) => index === editorSlotIndex ? { ...slot, ...changes } : slot);
+    const next = await window.photobooth.settings.update({
+      slotOverrides: { ...settings.slotOverrides, [editorTemplate.id]: slots }
+    });
+    setSettings(next);
+  }
+
+  async function resetEditorSlots() {
+    const { [editorTemplate.id]: _removed, ...slotOverrides } = settings.slotOverrides;
+    const next = await window.photobooth.settings.update({ slotOverrides });
+    setSettings(next);
+  }
+
   return (
     <main className="app-shell" style={{ ["--accent-color" as string]: settings.accentColor }}>
       <header className="topbar">
@@ -366,9 +393,10 @@ export default function App() {
           <div className="template-grid compact-template-grid">
             {templates.map((item) => {
               const selected = item.id === templateId;
+              const previewTemplate = { ...item, slots: settings.slotOverrides[item.id] ?? item.slots };
               return (
                 <button key={item.id} className={`template-card compact-template-card${selected ? " selected" : ""}`} onClick={() => setTemplateId(item.id)}>
-                  <StripShowcase template={item} shots={sampleShots(item.captureCount)} filterCss={filter.cssFilter} compact />
+                  <StripShowcase template={previewTemplate} shots={sampleShots(item.captureCount)} filterCss={filter.cssFilter} compact />
                   <div className="template-meta">
                     <strong>{item.name}</strong>
                     <span>6 foto</span>
@@ -677,6 +705,46 @@ export default function App() {
                 ))}
               </div>
             </div>
+            <div className="operator-section slot-editor-section">
+              <label>Editor posisi foto</label>
+              <div className="slot-editor-layout">
+                <div className="slot-editor-preview">
+                  <StripShowcase
+                    template={editorTemplate}
+                    shots={sampleShots(editorTemplate.captureCount)}
+                    filterCss="none"
+                    compact
+                    selectedSlotIndex={editorSlotIndex}
+                  />
+                </div>
+                <div className="slot-editor-controls">
+                  <select value={editorTemplateId} onChange={(event) => { setEditorTemplateId(event.target.value); setEditorSlotIndex(0); }}>
+                    {templates.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                  </select>
+                  <div className="slot-selector">
+                    {editorTemplate.slots.map((slot, index) => (
+                      <button key={slot.id} className={`chip-button${editorSlotIndex === index ? " active" : ""}`} onClick={() => setEditorSlotIndex(index)}>
+                        {index + 1}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="slot-fields">
+                    {(["x", "y", "width", "height", "cornerRadius"] as const).map((field) => (
+                      <label key={field}>
+                        <span>{field === "cornerRadius" ? "Radius" : field.toUpperCase()}</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={editorSlot[field]}
+                          onChange={(event) => void updateEditorSlot({ [field]: Number(event.target.value) })}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <button className="secondary-button small" onClick={() => void resetEditorSlots()}>Reset posisi frame</button>
+                </div>
+              </div>
+            </div>
             <button className="secondary-button full" onClick={() => void resetStore()}>Reset demo data</button>
           </aside>
         </div>
@@ -757,16 +825,18 @@ function FinalStripImage({ dataUrl }: { dataUrl: string }) {
   return <img className="final-strip-image" src={dataUrl} alt="Hasil strip photobooth" />;
 }
 
-function StripShowcase({ template, shots, filterCss, compact = false }: { template: PhotoTemplate; shots: StoredShot[]; filterCss: string; compact?: boolean }) {
+function StripShowcase({ template, shots, filterCss, compact = false, selectedSlotIndex }: { template: PhotoTemplate; shots: StoredShot[]; filterCss: string; compact?: boolean; selectedSlotIndex?: number }) {
   const overlayUrl = frameAssets[template.overlayAsset] ?? frame3Url;
+  const displayHeight = compact ? 138 : 520;
+  const displayWidth = displayHeight * (template.width / template.height);
   return (
-    <div className={`strip-shell ${compact ? " compact" : ""}`} style={{ width: template.width * (compact ? 0.58 : 1.05), height: template.height * (compact ? 0.58 : 1.05) }}>
-      {template.slots.map((slot) => {
+    <div className={`strip-shell ${compact ? " compact" : ""}`} style={{ width: displayWidth, height: displayHeight }}>
+      {template.slots.map((slot, slotIndex) => {
         const shot = shots.find((item) => item.shotIndex === slot.photoIndex) ?? sampleShots(template.captureCount)[slot.photoIndex];
         return (
           <div
             key={slot.id}
-            className="strip-slot"
+            className={`strip-slot${selectedSlotIndex === slotIndex ? " editing" : ""}`}
             style={{
               left: `${(slot.x / template.width) * 100}%`,
               top: `${(slot.y / template.height) * 100}%`,

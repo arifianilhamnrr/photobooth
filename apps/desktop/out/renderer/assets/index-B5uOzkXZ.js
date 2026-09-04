@@ -14580,7 +14580,11 @@ function requireBrowser() {
 }
 var browserExports = requireBrowser();
 const QRCode = /* @__PURE__ */ getDefaultExportFromCjs(browserExports);
-const providedFrameUrl = "" + new URL("photobhoot-transparent-DyPEva-1.png", import.meta.url).href;
+const frame1Url = "" + new URL("frame-1-C-bQ9HFh.png", import.meta.url).href;
+const frame2Url = "" + new URL("frame-2-CDadb7rB.png", import.meta.url).href;
+const frame3Url = "" + new URL("frame-3-DFD0oSHh.png", import.meta.url).href;
+const frame4Url = "" + new URL("frame-4-DRTOKaIU.png", import.meta.url).href;
+const frame5Url = "" + new URL("frame-5-S7xnk1hu.png", import.meta.url).href;
 const filters = [
   { id: "original", label: "Original", cssFilter: "none" },
   { id: "mono", label: "Mono", cssFilter: "grayscale(1) contrast(1.08)" },
@@ -14595,24 +14599,93 @@ const defaultSettings = {
   countdownSeconds: 3,
   poseBreakSeconds: 2,
   autoResetSeconds: 60,
-  driveRootFolderName: "Photobooth Sessions"
+  driveRootFolderName: "Photobooth Sessions",
+  slotOverrides: {}
 };
 const templates = [
   {
-    id: "collaboration-strip-6",
-    name: "Collaboration Strip",
-    description: "Frame default 6 foto untuk hasil event yang rapi dan penuh.",
+    id: "frame-1",
+    name: "Frame Original",
+    description: "Frame awal Collaboration Day dengan komposisi dua kolom.",
+    captureCount: 6,
+    width: 3765,
+    height: 5610,
+    overlayAsset: "frame-1.png",
+    slots: [
+      { id: "slot-1", photoIndex: 0, x: 221, y: 958, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
+      { id: "slot-2", photoIndex: 1, x: 1937, y: 958, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
+      { id: "slot-3", photoIndex: 2, x: 221, y: 2263, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
+      { id: "slot-4", photoIndex: 3, x: 1937, y: 2263, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
+      { id: "slot-5", photoIndex: 4, x: 221, y: 3567, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
+      { id: "slot-6", photoIndex: 5, x: 1937, y: 3567, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 }
+    ]
+  },
+  {
+    id: "frame-2",
+    name: "Frame Aurora",
+    description: "Warna cerah dan playful untuk hasil yang lebih rame.",
     captureCount: 6,
     width: 386,
     height: 574,
-    overlayStyle: "provided-frame",
+    overlayAsset: "frame-2.png",
     slots: [
-      { id: "slot-1", photoIndex: 0, x: 12, y: 54, width: 119, height: 103, rotation: 0, cornerRadius: 4 },
-      { id: "slot-2", photoIndex: 1, x: 157, y: 54, width: 119, height: 103, rotation: 0, cornerRadius: 4 },
-      { id: "slot-3", photoIndex: 2, x: 12, y: 163, width: 119, height: 104, rotation: 0, cornerRadius: 4 },
-      { id: "slot-4", photoIndex: 3, x: 157, y: 163, width: 119, height: 104, rotation: 0, cornerRadius: 4 },
-      { id: "slot-5", photoIndex: 4, x: 12, y: 272, width: 119, height: 104, rotation: 0, cornerRadius: 4 },
-      { id: "slot-6", photoIndex: 5, x: 157, y: 272, width: 119, height: 104, rotation: 0, cornerRadius: 4 }
+      { id: "slot-1", photoIndex: 0, x: 22, y: 82, width: 141, height: 141, rotation: 0, cornerRadius: 5 },
+      { id: "slot-2", photoIndex: 1, x: 219, y: 99, width: 142, height: 119, rotation: 0, cornerRadius: 5 },
+      { id: "slot-3", photoIndex: 2, x: 21, y: 232, width: 133, height: 139, rotation: 0, cornerRadius: 5 },
+      { id: "slot-4", photoIndex: 3, x: 219, y: 236, width: 142, height: 118, rotation: 0, cornerRadius: 5 },
+      { id: "slot-5", photoIndex: 4, x: 22, y: 380, width: 140, height: 140, rotation: 0, cornerRadius: 5 },
+      { id: "slot-6", photoIndex: 5, x: 219, y: 373, width: 142, height: 118, rotation: 0, cornerRadius: 5 }
+    ]
+  },
+  {
+    id: "frame-3",
+    name: "Frame Garden",
+    description: "Versi yang paling netral untuk default event booth.",
+    captureCount: 6,
+    width: 386,
+    height: 574,
+    overlayAsset: "frame-3.png",
+    slots: [
+      { id: "slot-1", photoIndex: 0, x: 17, y: 72, width: 158, height: 138, rotation: 0, cornerRadius: 5 },
+      { id: "slot-2", photoIndex: 1, x: 210, y: 72, width: 158, height: 138, rotation: 0, cornerRadius: 5 },
+      { id: "slot-3", photoIndex: 2, x: 17, y: 218, width: 158, height: 138, rotation: 0, cornerRadius: 5 },
+      { id: "slot-4", photoIndex: 3, x: 210, y: 218, width: 158, height: 138, rotation: 0, cornerRadius: 5 },
+      { id: "slot-5", photoIndex: 4, x: 17, y: 363, width: 158, height: 138, rotation: 0, cornerRadius: 5 },
+      { id: "slot-6", photoIndex: 5, x: 210, y: 363, width: 158, height: 138, rotation: 0, cornerRadius: 5 }
+    ]
+  },
+  {
+    id: "frame-4",
+    name: "Frame Midnight",
+    description: "Nuansa gelap dan lebih dramatis untuk strip malam.",
+    captureCount: 6,
+    width: 386,
+    height: 574,
+    overlayAsset: "frame-4.png",
+    slots: [
+      { id: "slot-1", photoIndex: 0, x: 13, y: 108, width: 166, height: 124, rotation: 0, cornerRadius: 4 },
+      { id: "slot-2", photoIndex: 1, x: 207, y: 108, width: 166, height: 124, rotation: 0, cornerRadius: 4 },
+      { id: "slot-3", photoIndex: 2, x: 13, y: 237, width: 166, height: 124, rotation: 0, cornerRadius: 4 },
+      { id: "slot-4", photoIndex: 3, x: 207, y: 237, width: 166, height: 124, rotation: 0, cornerRadius: 4 },
+      { id: "slot-5", photoIndex: 4, x: 13, y: 367, width: 166, height: 124, rotation: 0, cornerRadius: 4 },
+      { id: "slot-6", photoIndex: 5, x: 207, y: 367, width: 166, height: 124, rotation: 0, cornerRadius: 4 }
+    ]
+  },
+  {
+    id: "frame-5",
+    name: "Frame Bloom",
+    description: "Pilihan lebih dekoratif dengan warna yang lebih manis.",
+    captureCount: 6,
+    width: 386,
+    height: 574,
+    overlayAsset: "frame-5.png",
+    slots: [
+      { id: "slot-1", photoIndex: 0, x: 31, y: 91, width: 130, height: 98, rotation: 0, cornerRadius: 5 },
+      { id: "slot-2", photoIndex: 1, x: 223, y: 127, width: 130, height: 90, rotation: 0, cornerRadius: 5 },
+      { id: "slot-3", photoIndex: 2, x: 31, y: 211, width: 130, height: 89, rotation: 0, cornerRadius: 5 },
+      { id: "slot-4", photoIndex: 3, x: 223, y: 238, width: 130, height: 90, rotation: 0, cornerRadius: 5 },
+      { id: "slot-5", photoIndex: 4, x: 31, y: 322, width: 130, height: 91, rotation: 0, cornerRadius: 5 },
+      { id: "slot-6", photoIndex: 5, x: 223, y: 350, width: 130, height: 89, rotation: 0, cornerRadius: 5 }
     ]
   }
 ];
@@ -14622,6 +14695,13 @@ function getTemplate(templateId) {
   return template;
 }
 const CAPTURE_INTERVAL_MS = 900;
+const frameAssets = {
+  "frame-1.png": frame1Url,
+  "frame-2.png": frame2Url,
+  "frame-3.png": frame3Url,
+  "frame-4.png": frame4Url,
+  "frame-5.png": frame5Url
+};
 function App() {
   const [systemStatus, setSystemStatus] = reactExports.useState("Memeriksa aplikasi");
   const [settings, setSettings] = reactExports.useState(defaultSettings);
@@ -14648,9 +14728,19 @@ function App() {
   const [recipientEmail, setRecipientEmail] = reactExports.useState("");
   const [emailError, setEmailError] = reactExports.useState("");
   const [kioskEnabled, setKioskEnabled] = reactExports.useState(true);
+  const [editorTemplateId, setEditorTemplateId] = reactExports.useState(templates[0].id);
+  const [editorSlotIndex, setEditorSlotIndex] = reactExports.useState(0);
   const videoRef = reactExports.useRef(null);
   const streamRef = reactExports.useRef(null);
-  const template = reactExports.useMemo(() => getTemplate(session?.templateId ?? templateId), [session?.templateId, templateId]);
+  const template = reactExports.useMemo(() => {
+    const base = getTemplate(session?.templateId ?? templateId);
+    return { ...base, slots: settings.slotOverrides[base.id] ?? base.slots };
+  }, [session?.templateId, settings.slotOverrides, templateId]);
+  const editorTemplate = reactExports.useMemo(() => {
+    const base = getTemplate(editorTemplateId);
+    return { ...base, slots: settings.slotOverrides[base.id] ?? base.slots };
+  }, [editorTemplateId, settings.slotOverrides]);
+  const editorSlot = editorTemplate.slots[editorSlotIndex] ?? editorTemplate.slots[0];
   const filter = reactExports.useMemo(() => filters.find((item) => item.id === (session?.filterId ?? filterId)) ?? filters[0], [filterId, session?.filterId]);
   const shots = session?.shots ?? [];
   reactExports.useEffect(() => {
@@ -14781,9 +14871,9 @@ function App() {
     setAllSessions((current) => [nextSession, ...current.filter((item) => item.id !== nextSession.id)]);
   }
   async function startSession() {
-    const forcedTemplateId = templates[0].id;
-    setTemplateId(forcedTemplateId);
-    const nextSession = await window.photobooth.sessions.create({ templateId: forcedTemplateId, filterId });
+    const defaultTemplateId = templates.find((item) => item.id === "frame-3")?.id ?? templates[0].id;
+    setTemplateId(defaultTemplateId);
+    const nextSession = await window.photobooth.sessions.create({ templateId: defaultTemplateId, filterId });
     setSession(nextSession);
     updateSessionCollection(nextSession);
     setCaptureIndex(0);
@@ -14792,8 +14882,8 @@ function App() {
     setQrUrl("");
     setRecipientEmail("");
     setEmailError("");
-    setQueueStatus("Frame default siap dipakai.");
-    setStep("ready");
+    setQueueStatus("Pilih frame dulu sebelum mulai foto.");
+    setStep("template");
   }
   function beginCapture() {
     if (!session) return;
@@ -14885,6 +14975,18 @@ function App() {
     const result = await window.photobooth.system.setKiosk(value);
     setKioskEnabled(result.kiosk);
   }
+  async function updateEditorSlot(changes) {
+    const slots = editorTemplate.slots.map((slot, index) => index === editorSlotIndex ? { ...slot, ...changes } : slot);
+    const next = await window.photobooth.settings.update({
+      slotOverrides: { ...settings.slotOverrides, [editorTemplate.id]: slots }
+    });
+    setSettings(next);
+  }
+  async function resetEditorSlots() {
+    const { [editorTemplate.id]: _removed, ...slotOverrides } = settings.slotOverrides;
+    const next = await window.photobooth.settings.update({ slotOverrides });
+    setSettings(next);
+  }
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "app-shell", style: { ["--accent-color"]: settings.accentColor }, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "topbar", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "topbar-branding", children: [
@@ -14909,6 +15011,40 @@ function App() {
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "welcome-actions", children: /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: () => void startSession(), children: "Mulai" }) })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(StripShowcase, { template, shots: sampleShots(template.captureCount), filterCss: filter.cssFilter })
+    ] }),
+    step === "template" && session && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "screen-card stack-gap compact-template-step", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "section-head compact-head", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "PILIH FRAME" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "Pilih frame yang paling cocok." })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Semua frame memakai 6 foto. Pilih satu dulu, lalu lanjut ke kamera." })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "template-grid compact-template-grid", children: templates.map((item) => {
+        const selected = item.id === templateId;
+        const previewTemplate = { ...item, slots: settings.slotOverrides[item.id] ?? item.slots };
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: `template-card compact-template-card${selected ? " selected" : ""}`, onClick: () => setTemplateId(item.id), children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(StripShowcase, { template: previewTemplate, shots: sampleShots(item.captureCount), filterCss: filter.cssFilter, compact: true }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "template-meta", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: item.name }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "6 foto" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: item.description })
+          ] })
+        ] }, item.id);
+      }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "action-row compact-actions", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "filter-row", children: filters.map((item) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: `chip-button${filterId === item.id ? " active" : ""}`, onClick: () => setFilterId(item.id), children: item.label }, item.id)) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "dual-actions compact-dual-actions", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", onClick: resetToWelcome, children: "Kembali" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: async () => {
+            const updated = await window.photobooth.sessions.updateConfig({ sessionId: session.id, templateId, filterId });
+            setSession(updated);
+            updateSessionCollection(updated);
+            setQueueStatus(`${getTemplate(templateId).name} siap dipakai.`);
+            setStep("ready");
+          }, children: "Pakai frame ini" })
+        ] })
+      ] })
     ] }),
     step === "ready" && session && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "ready-layout screen-card", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "camera-stage", children: /* @__PURE__ */ jsxRuntimeExports.jsx(CameraStage, { videoRef, cameraReady, cameraError, filterCss: filter.cssFilter, label: cameraLabel }) }),
@@ -14946,7 +15082,7 @@ function App() {
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Cek izin kamera atau buka operator untuk pilih source lain." })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "dual-actions", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", onClick: resetToWelcome, children: "Kembali" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", onClick: () => setStep("template"), children: "Kembali" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: beginCapture, disabled: !cameraReady && !selectedCameraSourceId.startsWith("gphoto:"), children: "Mulai foto" })
         ] })
       ] })
@@ -15172,6 +15308,41 @@ function App() {
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: item.status })
         ] }, item.id)) })
       ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-section slot-editor-section", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { children: "Editor posisi foto" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "slot-editor-layout", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "slot-editor-preview", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+            StripShowcase,
+            {
+              template: editorTemplate,
+              shots: sampleShots(editorTemplate.captureCount),
+              filterCss: "none",
+              compact: true,
+              selectedSlotIndex: editorSlotIndex
+            }
+          ) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "slot-editor-controls", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("select", { value: editorTemplateId, onChange: (event) => {
+              setEditorTemplateId(event.target.value);
+              setEditorSlotIndex(0);
+            }, children: templates.map((item) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: item.id, children: item.name }, item.id)) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "slot-selector", children: editorTemplate.slots.map((slot, index) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: `chip-button${editorSlotIndex === index ? " active" : ""}`, onClick: () => setEditorSlotIndex(index), children: index + 1 }, slot.id)) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "slot-fields", children: ["x", "y", "width", "height", "cornerRadius"].map((field) => /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: field === "cornerRadius" ? "Radius" : field.toUpperCase() }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  type: "number",
+                  min: "0",
+                  value: editorSlot[field],
+                  onChange: (event) => void updateEditorSlot({ [field]: Number(event.target.value) })
+                }
+              )
+            ] }, field)) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button small", onClick: () => void resetEditorSlots(), children: "Reset posisi frame" })
+          ] })
+        ] })
+      ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button full", onClick: () => void resetStore(), children: "Reset demo data" })
     ] }) })
   ] });
@@ -15226,14 +15397,17 @@ function CameraStage({
 function FinalStripImage({ dataUrl }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsx("img", { className: "final-strip-image", src: dataUrl, alt: "Hasil strip photobooth" });
 }
-function StripShowcase({ template, shots, filterCss, compact = false }) {
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `strip-shell ${compact ? " compact" : ""}`, style: { width: template.width * (compact ? 0.58 : 1.05), height: template.height * (compact ? 0.58 : 1.05) }, children: [
-    template.slots.map((slot) => {
+function StripShowcase({ template, shots, filterCss, compact = false, selectedSlotIndex }) {
+  const overlayUrl = frameAssets[template.overlayAsset] ?? frame3Url;
+  const displayHeight = compact ? 138 : 520;
+  const displayWidth = displayHeight * (template.width / template.height);
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `strip-shell ${compact ? " compact" : ""}`, style: { width: displayWidth, height: displayHeight }, children: [
+    template.slots.map((slot, slotIndex) => {
       const shot = shots.find((item) => item.shotIndex === slot.photoIndex) ?? sampleShots(template.captureCount)[slot.photoIndex];
       return /* @__PURE__ */ jsxRuntimeExports.jsx(
         "div",
         {
-          className: "strip-slot",
+          className: `strip-slot${selectedSlotIndex === slotIndex ? " editing" : ""}`,
           style: {
             left: `${slot.x / template.width * 100}%`,
             top: `${slot.y / template.height * 100}%`,
@@ -15251,7 +15425,7 @@ function StripShowcase({ template, shots, filterCss, compact = false }) {
         slot.id
       );
     }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "strip-overlay", children: /* @__PURE__ */ jsxRuntimeExports.jsx("img", { className: "provided-frame", src: providedFrameUrl, alt: "Frame photobooth" }) })
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "strip-overlay", children: /* @__PURE__ */ jsxRuntimeExports.jsx("img", { className: "provided-frame", src: overlayUrl, alt: template.name }) })
   ] });
 }
 ReactDOM.createRoot(document.getElementById("root")).render(
