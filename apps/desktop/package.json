@@ -1,0 +1,39 @@
+{
+  "name": "@photobooth/desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && electron-vite dev\"",
+    "build": "electron-vite build",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@photobooth/camera": "*",
+    "@photobooth/compositor": "*",
+    "@photobooth/domain": "*",
+    "@photobooth/drive": "*",
+    "@photobooth/storage": "*",
+    "node-addon-api": "^8.5.0",
+    "sharp": "^0.34.4",
+    "qrcode": "^1.5.4",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.0.4",
+    "concurrently": "^9.2.1",
+    "electron": "^44.2.0",
+    "electron-vite": "^4.0.0",
+    "node-gyp": "^11.5.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12",
+    "vitest": "^4.0.0",
+    "wait-on": "^9.0.3"
+  }
+}

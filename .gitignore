@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+.vite/
+.turbo/
+coverage/
+playwright-report/
+test-results/
+*.log
+*.tsbuildinfo
+apps/desktop/.electron/
+apps/desktop/.data/

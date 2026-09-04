@@ -1,0 +1,12 @@
+{
+  "name": "@photobooth/storage",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "@photobooth/domain": "*"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json --noEmit"
+  }
+}

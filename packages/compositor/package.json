@@ -1,0 +1,17 @@
+{
+  "name": "@photobooth/compositor",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "@photobooth/domain": "*",
+    "node-addon-api": "^8.5.0",
+    "sharp": "^0.34.4"
+  },
+  "devDependencies": {
+    "node-gyp": "^11.5.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json --noEmit"
+  }
+}

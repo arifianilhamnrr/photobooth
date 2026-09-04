@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@photobooth/domain": ["../domain/src/index.ts"]
+    }
+  },
+  "include": ["src", "../domain/src/**/*.ts"]
+}
