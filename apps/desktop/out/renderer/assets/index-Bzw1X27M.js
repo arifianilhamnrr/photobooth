@@ -15023,14 +15023,20 @@ function App() {
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "template-grid compact-template-grid", children: templates.map((item) => {
         const selected = item.id === templateId;
         const previewTemplate = { ...item, slots: settings.slotOverrides[item.id] ?? item.slots };
-        return /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: `template-card compact-template-card${selected ? " selected" : ""}`, onClick: () => setTemplateId(item.id), children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(StripShowcase, { template: previewTemplate, shots: sampleShots(item.captureCount), filterCss: filter.cssFilter, compact: true }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "template-meta", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: item.name }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "6 foto" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: item.description })
-          ] })
-        ] }, item.id);
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            className: `template-card compact-template-card${selected ? " selected" : ""}`,
+            onClick: () => setTemplateId(item.id),
+            "aria-label": `Pilih ${item.name}`,
+            "aria-pressed": selected,
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(StripShowcase, { template: previewTemplate, shots: sampleShots(item.captureCount), filterCss: filter.cssFilter, compact: true }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "frame-selection-mark", "aria-hidden": "true", children: selected ? "Dipilih" : "Pilih" })
+            ]
+          },
+          item.id
+        );
       }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "action-row compact-actions", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "filter-row", children: filters.map((item) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: `chip-button${filterId === item.id ? " active" : ""}`, onClick: () => setFilterId(item.id), children: item.label }, item.id)) }),

@@ -256,30 +256,31 @@ button {
 }
 
 .compact-template-card {
-  grid-template-rows: 142px auto;
-  grid-template-columns: 1fr;
-  gap: 12px;
-  padding: 12px;
-  justify-items: center;
-  align-content: start;
-}
-
-.compact-template-card .template-meta {
-  width: 100%;
-}
-
-.compact-template-card .template-meta strong {
-  font-size: 16px;
-}
-
-.compact-template-card .template-meta p {
-  margin-top: 6px;
-  font-size: 13px;
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 290px;
+  padding: 18px;
   overflow: hidden;
+}
+
+.frame-selection-mark {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid #41464b;
+  background: rgba(17, 19, 21, 0.88);
+  color: #9ea5a9;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.compact-template-card.selected .frame-selection-mark {
+  border-color: var(--accent-color);
+  background: var(--accent-color);
+  color: #15110f;
 }
 
 .compact-actions {

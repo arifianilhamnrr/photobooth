@@ -395,13 +395,15 @@ export default function App() {
               const selected = item.id === templateId;
               const previewTemplate = { ...item, slots: settings.slotOverrides[item.id] ?? item.slots };
               return (
-                <button key={item.id} className={`template-card compact-template-card${selected ? " selected" : ""}`} onClick={() => setTemplateId(item.id)}>
+                <button
+                  key={item.id}
+                  className={`template-card compact-template-card${selected ? " selected" : ""}`}
+                  onClick={() => setTemplateId(item.id)}
+                  aria-label={`Pilih ${item.name}`}
+                  aria-pressed={selected}
+                >
                   <StripShowcase template={previewTemplate} shots={sampleShots(item.captureCount)} filterCss={filter.cssFilter} compact />
-                  <div className="template-meta">
-                    <strong>{item.name}</strong>
-                    <span>6 foto</span>
-                    <p>{item.description}</p>
-                  </div>
+                  <span className="frame-selection-mark" aria-hidden="true">{selected ? "Dipilih" : "Pilih"}</span>
                 </button>
               );
             })}
