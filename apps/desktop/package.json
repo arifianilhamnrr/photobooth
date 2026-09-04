@@ -2,11 +2,18 @@
   "name": "@photobooth/desktop",
   "private": true,
   "version": "0.1.0",
+  "description": "Offline-first desktop photobooth for Collaboration Day 2026.",
+  "author": {
+    "name": "Arifian Ilham Nur",
+    "email": "arifianilhamnur@gmail.com"
+  },
+  "homepage": "https://photobooth.collaborationday2026.web.id",
   "type": "module",
   "main": "dist/main/index.js",
   "scripts": {
     "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && electron-vite dev\"",
     "build": "electron-vite build",
+    "dist": "npm run build && electron-builder",
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "test": "vitest run"
   },
@@ -31,12 +38,55 @@
     "@types/nodemailer": "^7.0.3",
     "@vitejs/plugin-react": "^5.0.4",
     "concurrently": "^9.2.1",
-    "electron": "^44.2.0",
+    "electron": "44.2.0",
+    "electron-builder": "^26.0.12",
     "electron-vite": "^4.0.0",
     "node-gyp": "^11.5.0",
     "typescript": "^5.9.3",
     "vite": "^7.1.12",
     "vitest": "^4.0.0",
     "wait-on": "^9.0.3"
+  },
+  "build": {
+    "appId": "com.collaborationday.photobooth",
+    "productName": "Collaboration Day Photobooth",
+    "executableName": "collaboration-day-photobooth",
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Graphics",
+      "icon": "resources/icon.png",
+      "maintainer": "Arifian Ilham Nur <arifianilhamnur@gmail.com>",
+      "syncDesktopName": true
+    },
+    "deb": {
+      "packageName": "collaboration-day-photobooth",
+      "artifactName": "collaboration-day-photobooth_${version}_${arch}.${ext}"
+    },
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "out/renderer/**",
+      "resources/**",
+      "../../packages/**/src/**",
+      "package.json"
+    ],
+    "electronVersion": "44.2.0",
+    "extraResources": [
+      {
+        "from": "src/renderer/assets/photobhoot-transparent.png",
+        "to": "photobhoot-transparent.png"
+      }
+    ],
+    "win": {
+      "target": ["nsis"],
+      "icon": "resources/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

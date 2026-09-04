@@ -3,7 +3,8 @@ import type { BoothSettings, CameraSource, CloudStatus, DriveStatus, QueueItem, 
 
 contextBridge.exposeInMainWorld("photobooth", {
   system: {
-    ping: () => ipcRenderer.invoke("system:ping") as Promise<{ ok: boolean }>
+    ping: () => ipcRenderer.invoke("system:ping") as Promise<{ ok: boolean }>,
+    setKiosk: (value: boolean) => ipcRenderer.invoke("window:set-kiosk", value) as Promise<{ kiosk: boolean }>
   },
   app: {
     snapshot: () => ipcRenderer.invoke("app:snapshot") as Promise<{ settings: BoothSettings; sessions: StoredSession[]; queue: QueueItem[]; cameraSources: CameraSource[]; selectedCameraSourceId: string; driveStatus: DriveStatus; cloudStatus: CloudStatus }>
@@ -43,6 +44,7 @@ declare global {
     photobooth: {
       system: {
         ping(): Promise<{ ok: boolean }>;
+        setKiosk(value: boolean): Promise<{ kiosk: boolean }>;
       };
       app: {
         snapshot(): Promise<{ settings: BoothSettings; sessions: StoredSession[]; queue: QueueItem[]; cameraSources: CameraSource[]; selectedCameraSourceId: string; driveStatus: DriveStatus; cloudStatus: CloudStatus }>;

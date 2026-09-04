@@ -14663,6 +14663,7 @@ function App() {
   const [cameraLabel, setCameraLabel] = reactExports.useState("Kamera belum dipilih");
   const [recipientEmail, setRecipientEmail] = reactExports.useState("");
   const [emailError, setEmailError] = reactExports.useState("");
+  const [kioskEnabled, setKioskEnabled] = reactExports.useState(true);
   const videoRef = reactExports.useRef(null);
   const streamRef = reactExports.useRef(null);
   const template = reactExports.useMemo(() => getTemplate(session?.templateId ?? templateId), [session?.templateId, templateId]);
@@ -14887,6 +14888,10 @@ function App() {
     const status = await window.photobooth.drive.createRootFolder(settings.driveRootFolderName);
     setDriveStatus(status);
   }
+  async function toggleKiosk(value) {
+    const result = await window.photobooth.system.setKiosk(value);
+    setKioskEnabled(result.kiosk);
+  }
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "app-shell", style: { ["--accent-color"]: settings.accentColor }, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "topbar", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
@@ -15096,6 +15101,10 @@ function App() {
             /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Kamera" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: cameraReady ? cameraLabel : cameraError || cameraLabel || "Fallback demo" })
           ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-row", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Kiosk" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: kioskEnabled ? "Aktif" : "Nonaktif" })
+          ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "operator-camera-picker", children: cameraSources.map((source) => /* @__PURE__ */ jsxRuntimeExports.jsx(
             "button",
             {
@@ -15105,6 +15114,10 @@ function App() {
             },
             source.id
           )) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-camera-picker", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button small", onClick: () => void toggleKiosk(true), children: "Aktifkan kiosk" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button small", onClick: () => void toggleKiosk(false), children: "Keluar kiosk" })
+          ] }),
           queue.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "Belum ada sesi yang menunggu link." }) : queue.map((item) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-row", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: item.sessionId }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: item.status })

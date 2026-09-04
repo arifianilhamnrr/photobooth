@@ -45,6 +45,7 @@ export default function App() {
   const [cameraLabel, setCameraLabel] = useState("Kamera belum dipilih");
   const [recipientEmail, setRecipientEmail] = useState("");
   const [emailError, setEmailError] = useState("");
+  const [kioskEnabled, setKioskEnabled] = useState(true);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -300,6 +301,11 @@ export default function App() {
     setDriveStatus(status);
   }
 
+  async function toggleKiosk(value: boolean) {
+    const result = await window.photobooth.system.setKiosk(value);
+    setKioskEnabled(result.kiosk);
+  }
+
   return (
     <main className="app-shell" style={{ ["--accent-color" as string]: settings.accentColor }}>
       <header className="topbar">
@@ -526,6 +532,10 @@ export default function App() {
                   <strong>Kamera</strong>
                   <span>{cameraReady ? cameraLabel : cameraError || cameraLabel || "Fallback demo"}</span>
                 </div>
+                <div className="operator-row">
+                  <strong>Kiosk</strong>
+                  <span>{kioskEnabled ? "Aktif" : "Nonaktif"}</span>
+                </div>
                 <div className="operator-camera-picker">
                   {cameraSources.map((source) => (
                     <button
@@ -536,6 +546,10 @@ export default function App() {
                       {source.label}
                     </button>
                   ))}
+                </div>
+                <div className="operator-camera-picker">
+                  <button className="secondary-button small" onClick={() => void toggleKiosk(true)}>Aktifkan kiosk</button>
+                  <button className="secondary-button small" onClick={() => void toggleKiosk(false)}>Keluar kiosk</button>
                 </div>
                 {queue.length === 0 ? <p>Belum ada sesi yang menunggu link.</p> : queue.map((item) => (
                   <div className="operator-row" key={item.sessionId}>

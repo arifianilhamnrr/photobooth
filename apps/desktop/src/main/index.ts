@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, nativeImage } from "electron";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdir, mkdtemp, readFile, unlink } from "node:fs/promises";
@@ -36,6 +36,7 @@ const databasePath = join(app.getPath("userData"), "photobooth.sqlite");
 const sessionsBaseDir = join(app.getPath("userData"), "sessions");
 const overlayPath = join(app.getAppPath(), "src/renderer/assets/photobhoot-transparent.png");
 const driveAuthPath = join(app.getPath("userData"), "drive-auth.json");
+const iconPath = join(app.getAppPath(), "resources", process.platform === "win32" ? "icon.ico" : "icon.png");
 const execFileAsync = promisify(execFile);
 let selectedCameraSourceId = "webcam:default";
 let database = openDatabase(databasePath);
@@ -222,8 +223,11 @@ async function createWindow() {
     height: 960,
     minWidth: 1280,
     minHeight: 720,
+    icon: nativeImage.createFromPath(iconPath),
     backgroundColor: "#101112",
     autoHideMenuBar: true,
+    fullscreen: true,
+    kiosk: true,
     webPreferences: {
       preload: join(__dirname, "../preload/index.mjs"),
       contextIsolation: true,
@@ -331,6 +335,11 @@ app.whenReady().then(() => {
   ipcMain.handle("drive:sign-in", async (): Promise<DriveStatus> => driveService.signIn());
   ipcMain.handle("drive:sign-out", async (): Promise<DriveStatus> => driveService.signOut());
   ipcMain.handle("drive:create-root-folder", async (_event, input: { name: string }): Promise<DriveStatus> => driveService.createRootFolder(input.name));
+  ipcMain.handle("window:set-kiosk", async (_event, value: boolean) => {
+    mainWindow?.setKiosk(value);
+    if (value) mainWindow?.setFullScreen(true);
+    return { kiosk: mainWindow?.isKiosk() ?? false };
+  });
   ipcMain.handle("store:reset", async () => {
     database.close();
     database = openDatabase(databasePath);

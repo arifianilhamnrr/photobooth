@@ -10,3 +10,4 @@ test-results/
 *.tsbuildinfo
 apps/desktop/.electron/
 apps/desktop/.data/
+apps/desktop/release/
