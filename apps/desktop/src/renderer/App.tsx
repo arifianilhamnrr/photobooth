@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
-import providedFrameUrl from "./assets/photobhoot-transparent.png";
+import frame2Url from "./assets/frames/frame-2.png";
+import frame3Url from "./assets/frames/frame-3.png";
+import frame4Url from "./assets/frames/frame-4.png";
+import frame5Url from "./assets/frames/frame-5.png";
 import {
   defaultSettings,
   filters,
@@ -20,6 +23,13 @@ import {
 type Step = "welcome" | "template" | "ready" | "capture" | "review" | "email" | "saving" | "result";
 
 const CAPTURE_INTERVAL_MS = 900;
+
+const frameAssets: Record<string, string> = {
+  "frame-2.png": frame2Url,
+  "frame-3.png": frame3Url,
+  "frame-4.png": frame4Url,
+  "frame-5.png": frame5Url
+};
 
 export default function App() {
   const [systemStatus, setSystemStatus] = useState("Memeriksa aplikasi");
@@ -199,9 +209,9 @@ export default function App() {
   }
 
   async function startSession() {
-    const forcedTemplateId = templates[0].id;
-    setTemplateId(forcedTemplateId);
-    const nextSession = await window.photobooth.sessions.create({ templateId: forcedTemplateId, filterId });
+    const defaultTemplateId = templates[1]?.id ?? templates[0].id;
+    setTemplateId(defaultTemplateId);
+    const nextSession = await window.photobooth.sessions.create({ templateId: defaultTemplateId, filterId });
     setSession(nextSession);
     updateSessionCollection(nextSession);
     setCaptureIndex(0);
@@ -210,8 +220,8 @@ export default function App() {
     setQrUrl("");
     setRecipientEmail("");
     setEmailError("");
-    setQueueStatus("Frame default siap dipakai.");
-    setStep("ready");
+    setQueueStatus("Pilih frame dulu sebelum mulai foto.");
+    setStep("template");
   }
 
   function beginCapture() {
@@ -344,6 +354,52 @@ export default function App() {
         </section>
       )}
 
+      {step === "template" && session && (
+        <section className="screen-card stack-gap compact-template-step">
+          <div className="section-head compact-head">
+            <div>
+              <p className="eyebrow">PILIH FRAME</p>
+              <h2>Pilih frame yang paling cocok.</h2>
+            </div>
+            <p className="body small">Semua frame memakai 6 foto. Pilih satu dulu, lalu lanjut ke kamera.</p>
+          </div>
+          <div className="template-grid compact-template-grid">
+            {templates.map((item) => {
+              const selected = item.id === templateId;
+              return (
+                <button key={item.id} className={`template-card compact-template-card${selected ? " selected" : ""}`} onClick={() => setTemplateId(item.id)}>
+                  <StripShowcase template={item} shots={sampleShots(item.captureCount)} filterCss={filter.cssFilter} compact />
+                  <div className="template-meta">
+                    <strong>{item.name}</strong>
+                    <span>6 foto</span>
+                    <p>{item.description}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <div className="action-row compact-actions">
+            <div className="filter-row">
+              {filters.map((item) => (
+                <button key={item.id} className={`chip-button${filterId === item.id ? " active" : ""}`} onClick={() => setFilterId(item.id)}>
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <div className="dual-actions compact-dual-actions">
+              <button className="secondary-button" onClick={resetToWelcome}>Kembali</button>
+              <button className="primary-button" onClick={async () => {
+                const updated = await window.photobooth.sessions.updateConfig({ sessionId: session.id, templateId, filterId });
+                setSession(updated);
+                updateSessionCollection(updated);
+                setQueueStatus(`${getTemplate(templateId).name} siap dipakai.`);
+                setStep("ready");
+              }}>Pakai frame ini</button>
+            </div>
+          </div>
+        </section>
+      )}
+
       {step === "ready" && session && (
         <section className="ready-layout screen-card">
           <div className="camera-stage">
@@ -369,7 +425,7 @@ export default function App() {
               </div>
             )}
             <div className="dual-actions">
-              <button className="secondary-button" onClick={resetToWelcome}>Kembali</button>
+              <button className="secondary-button" onClick={() => setStep("template")}>Kembali</button>
               <button className="primary-button" onClick={beginCapture} disabled={!cameraReady && !selectedCameraSourceId.startsWith("gphoto:")}>Mulai foto</button>
             </div>
           </div>
@@ -702,6 +758,7 @@ function FinalStripImage({ dataUrl }: { dataUrl: string }) {
 }
 
 function StripShowcase({ template, shots, filterCss, compact = false }: { template: PhotoTemplate; shots: StoredShot[]; filterCss: string; compact?: boolean }) {
+  const overlayUrl = frameAssets[template.overlayAsset] ?? frame3Url;
   return (
     <div className={`strip-shell ${compact ? " compact" : ""}`} style={{ width: template.width * (compact ? 0.58 : 1.05), height: template.height * (compact ? 0.58 : 1.05) }}>
       {template.slots.map((slot) => {
@@ -731,7 +788,7 @@ function StripShowcase({ template, shots, filterCss, compact = false }: { templa
         );
       })}
       <div className="strip-overlay">
-        <img className="provided-frame" src={providedFrameUrl} alt="Frame photobooth" />
+        <img className="provided-frame" src={overlayUrl} alt={template.name} />
       </div>
     </div>
   );

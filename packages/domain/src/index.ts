@@ -26,7 +26,7 @@ export interface PhotoTemplate {
   captureCount: number;
   width: number;
   height: number;
-  overlayStyle: "provided-frame";
+  overlayAsset: string;
   slots: TemplateSlot[];
 }
 
@@ -128,13 +128,13 @@ export const defaultSettings: BoothSettings = {
 
 export const templates: PhotoTemplate[] = [
   {
-    id: "collaboration-strip-6",
-    name: "Collaboration Strip",
-    description: "Frame default 6 foto untuk hasil event yang rapi dan penuh.",
+    id: "frame-2",
+    name: "Frame Aurora",
+    description: "Warna cerah dan playful untuk hasil yang lebih rame.",
     captureCount: 6,
     width: 386,
     height: 574,
-    overlayStyle: "provided-frame",
+    overlayAsset: "frame-2.png",
     slots: [
       { id: "slot-1", photoIndex: 0, x: 12, y: 54, width: 119, height: 103, rotation: 0, cornerRadius: 4 },
       { id: "slot-2", photoIndex: 1, x: 157, y: 54, width: 119, height: 103, rotation: 0, cornerRadius: 4 },
@@ -142,6 +142,57 @@ export const templates: PhotoTemplate[] = [
       { id: "slot-4", photoIndex: 3, x: 157, y: 163, width: 119, height: 104, rotation: 0, cornerRadius: 4 },
       { id: "slot-5", photoIndex: 4, x: 12, y: 272, width: 119, height: 104, rotation: 0, cornerRadius: 4 },
       { id: "slot-6", photoIndex: 5, x: 157, y: 272, width: 119, height: 104, rotation: 0, cornerRadius: 4 }
+    ]
+  },
+  {
+    id: "frame-3",
+    name: "Frame Garden",
+    description: "Versi yang paling netral untuk default event booth.",
+    captureCount: 6,
+    width: 386,
+    height: 574,
+    overlayAsset: "frame-3.png",
+    slots: [
+      { id: "slot-1", photoIndex: 0, x: 12, y: 54, width: 119, height: 103, rotation: 0, cornerRadius: 4 },
+      { id: "slot-2", photoIndex: 1, x: 157, y: 54, width: 119, height: 103, rotation: 0, cornerRadius: 4 },
+      { id: "slot-3", photoIndex: 2, x: 12, y: 163, width: 119, height: 104, rotation: 0, cornerRadius: 4 },
+      { id: "slot-4", photoIndex: 3, x: 157, y: 163, width: 119, height: 104, rotation: 0, cornerRadius: 4 },
+      { id: "slot-5", photoIndex: 4, x: 12, y: 272, width: 119, height: 104, rotation: 0, cornerRadius: 4 },
+      { id: "slot-6", photoIndex: 5, x: 157, y: 272, width: 119, height: 104, rotation: 0, cornerRadius: 4 }
+    ]
+  },
+  {
+    id: "frame-4",
+    name: "Frame Midnight",
+    description: "Nuansa gelap dan lebih dramatis untuk strip malam.",
+    captureCount: 6,
+    width: 386,
+    height: 574,
+    overlayAsset: "frame-4.png",
+    slots: [
+      { id: "slot-1", photoIndex: 0, x: 12, y: 54, width: 119, height: 103, rotation: 0, cornerRadius: 4 },
+      { id: "slot-2", photoIndex: 1, x: 157, y: 54, width: 119, height: 103, rotation: 0, cornerRadius: 4 },
+      { id: "slot-3", photoIndex: 2, x: 12, y: 163, width: 119, height: 104, rotation: 0, cornerRadius: 4 },
+      { id: "slot-4", photoIndex: 3, x: 157, y: 163, width: 119, height: 104, rotation: 0, cornerRadius: 4 },
+      { id: "slot-5", photoIndex: 4, x: 12, y: 272, width: 119, height: 104, rotation: 0, cornerRadius: 4 },
+      { id: "slot-6", photoIndex: 5, x: 157, y: 272, width: 119, height: 104, rotation: 0, cornerRadius: 4 }
+    ]
+  },
+  {
+    id: "frame-5",
+    name: "Frame Bloom",
+    description: "Pilihan lebih dekoratif dengan warna yang lebih manis.",
+    captureCount: 6,
+    width: 386,
+    height: 574,
+    overlayAsset: "frame-5.png",
+    slots: [
+      { id: "slot-1", photoIndex: 0, x: 77, y: 75, width: 148, height: 70, rotation: 0, cornerRadius: 4 },
+      { id: "slot-2", photoIndex: 1, x: 77, y: 145, width: 148, height: 70, rotation: 0, cornerRadius: 4 },
+      { id: "slot-3", photoIndex: 2, x: 77, y: 216, width: 148, height: 70, rotation: 0, cornerRadius: 4 },
+      { id: "slot-4", photoIndex: 3, x: 77, y: 286, width: 148, height: 70, rotation: 0, cornerRadius: 4 },
+      { id: "slot-5", photoIndex: 4, x: 77, y: 356, width: 148, height: 70, rotation: 0, cornerRadius: 4 },
+      { id: "slot-6", photoIndex: 5, x: 77, y: 426, width: 148, height: 70, rotation: 0, cornerRadius: 4 }
     ]
   }
 ];

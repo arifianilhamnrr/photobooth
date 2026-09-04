@@ -242,6 +242,42 @@ button {
   gap: 18px;
 }
 
+.compact-template-step {
+  grid-template-rows: auto 1fr auto;
+}
+
+.compact-head {
+  align-items: end;
+}
+
+.compact-template-grid {
+  gap: 14px;
+}
+
+.compact-template-card {
+  grid-template-columns: 108px 1fr;
+  gap: 12px;
+  padding: 12px;
+}
+
+.compact-template-card .template-meta strong {
+  font-size: 16px;
+}
+
+.compact-template-card .template-meta p {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.compact-actions {
+  align-items: flex-end;
+}
+
+.compact-dual-actions {
+  justify-content: flex-end;
+}
+
 .template-card {
   display: grid;
   grid-template-columns: 180px 1fr;
