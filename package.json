@@ -13,7 +13,9 @@
     "test": "npm run test --workspaces --if-present",
     "package:linux": "npm run dist -w @photobooth/desktop",
     "install:linux-deb": "sudo apt install -y \"./apps/desktop/release/collaboration-day-photobooth_0.1.0_amd64.deb\"",
-    "release:status": "ls \"/home/ar/Projects/photobooth/apps/desktop/release\""
+    "release:status": "ls \"/home/ar/Projects/photobooth/apps/desktop/release\"",
+    "autostart:install": "bash ./scripts/install-autostart.sh",
+    "autostart:remove": "bash ./scripts/uninstall-autostart.sh"
   },
   "engines": {
     "node": ">=20"

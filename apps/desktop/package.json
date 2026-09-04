@@ -8,6 +8,7 @@
     "email": "arifianilhamnur@gmail.com"
   },
   "homepage": "https://photobooth.collaborationday2026.web.id",
+  "desktopName": "collaboration-day-photobooth",
   "type": "module",
   "main": "dist/main/index.js",
   "scripts": {

@@ -201,6 +201,26 @@ Release package ada di:
 
 `https://github.com/arifianilhamnrr/photobooth/releases/tag/v0.1.0`
 
+## Autostart di Linux
+
+Untuk laptop booth yang harus langsung membuka app saat login desktop:
+
+```bash
+npm run autostart:install
+```
+
+Untuk mematikan autostart:
+
+```bash
+npm run autostart:remove
+```
+
+File autostart akan dibuat di:
+
+```text
+/home/ar/.config/autostart/collaboration-day-photobooth.desktop
+```
+
 ## Catatan
 
 - Folder `apps/desktop/release/` sengaja di-ignore dari git karena ukuran file besar.

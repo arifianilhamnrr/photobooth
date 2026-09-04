@@ -14887,7 +14887,7 @@ function App() {
   }
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "app-shell", style: { ["--accent-color"]: settings.accentColor }, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "topbar", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "topbar-branding", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "topbar-label", children: "PHOT OBOOTH" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { className: "brand", children: settings.eventName })
       ] }),
@@ -14895,9 +14895,9 @@ function App() {
         /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "status-pill", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("i", {}),
           " ",
-          systemStatus
+          cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? "Kamera siap" : "Cek kamera"
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "status-pill muted", children: queueStatus }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "status-pill muted compact-status", children: queueStatus }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button operator-toggle", onClick: () => setOperatorOpen(true), children: "Operator" })
       ] })
     ] }),
@@ -15081,7 +15081,8 @@ function App() {
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-header", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "OPERATOR" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "Booth control" })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "Booth control" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "operator-help", children: "Atur kamera, publish, dan mode kiosk tanpa mengganggu alur tamu." })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button small operator-close", onClick: () => setOperatorOpen(false), children: "Tutup" })
       ] }),

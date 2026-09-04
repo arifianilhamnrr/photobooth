@@ -52,11 +52,16 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 14px 18px;
+  padding: 12px 16px;
   border: 1px solid #34383c;
-  border-radius: 18px;
+  border-radius: 16px;
   background: rgba(24, 26, 28, 0.8);
   backdrop-filter: blur(14px);
+}
+
+.topbar-branding {
+  display: grid;
+  gap: 4px;
 }
 
 .topbar-label,
@@ -70,8 +75,8 @@ button {
 
 .brand {
   display: block;
-  margin-top: 8px;
-  font-size: 20px;
+  margin-top: 0;
+  font-size: 18px;
   letter-spacing: -0.03em;
 }
 
@@ -79,19 +84,19 @@ button {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 10px;
 }
 
 .status-pill {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
+  padding: 8px 12px;
   border-radius: 999px;
   border: 1px solid #34383c;
   background: #181a1c;
   color: #f2f1ed;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .status-pill i {
@@ -104,6 +109,13 @@ button {
 
 .status-pill.muted {
   color: #b2b4b3;
+}
+
+.compact-status {
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .screen-card {
@@ -686,13 +698,15 @@ button {
 }
 
 .operator-panel {
-  width: min(720px, 100%);
-  border-radius: 24px;
+  width: min(640px, 100%);
+  max-height: min(88dvh, 860px);
+  overflow: auto;
+  border-radius: 22px;
   border: 1px solid #34383c;
   background: #17191c;
-  padding: 24px;
+  padding: 20px;
   display: grid;
-  gap: 20px;
+  gap: 16px;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.3);
 }
 
@@ -705,7 +719,7 @@ button {
 
 .operator-header h3 {
   margin: 12px 0 0;
-  font-size: 32px;
+  font-size: 28px;
   letter-spacing: -0.05em;
 }
 
@@ -715,7 +729,7 @@ button {
 
 .operator-section {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .operator-section label {
@@ -771,7 +785,7 @@ button {
 
 .operator-list {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .operator-camera-picker {
@@ -785,7 +799,7 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border: 1px solid #34383c;
   border-radius: 14px;
   background: #111315;
