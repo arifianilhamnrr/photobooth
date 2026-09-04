@@ -462,6 +462,7 @@ button {
 
 .shot-list {
   margin: 16px 0;
+  grid-template-columns: 1fr;
 }
 
 .shot-card {
@@ -499,6 +500,7 @@ button {
 .result-board.narrow {
   display: grid;
   place-items: center;
+  padding: 18px;
 }
 
 .final-strip-image {
@@ -513,6 +515,33 @@ button {
 
 .qr-panel {
   justify-content: center;
+}
+
+.panel-footer {
+  margin-top: auto;
+  display: grid;
+  gap: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #2b2f33;
+}
+
+.panel-footer.compact {
+  gap: 12px;
+}
+
+.footer-note {
+  display: grid;
+  gap: 4px;
+}
+
+.footer-note strong {
+  font-size: 16px;
+  color: #f2f1ed;
+}
+
+.footer-note span {
+  font-size: 14px;
+  color: #98a0a4;
 }
 
 .qr-image,
@@ -714,6 +743,10 @@ button {
   border: 1px solid #34383c;
   border-radius: 14px;
   background: #111315;
+}
+
+.stacked-mobile {
+  width: 100%;
 }
 
 @media (prefers-reduced-motion: reduce) {

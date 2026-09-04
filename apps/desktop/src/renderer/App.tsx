@@ -422,7 +422,13 @@ export default function App() {
                 );
               })}
             </div>
-            <button className="primary-button full" onClick={() => void finishReview()}>Gunakan hasil ini</button>
+            <div className="panel-footer">
+              <div className="footer-note">
+                <strong>{template.captureCount} foto terpasang</strong>
+                <span>Lanjutkan untuk kirim link ke email tamu.</span>
+              </div>
+              <button className="primary-button full" onClick={() => void finishReview()}>Lanjut kirim link</button>
+            </div>
           </div>
         </section>
       )}
@@ -450,9 +456,15 @@ export default function App() {
               autoFocus
             />
             {emailError ? <p className="error-text">{emailError}</p> : <p className="operator-help">Contoh: nama@email.com</p>}
-            <div className="dual-actions stacked-mobile">
-              <button className="secondary-button" onClick={() => setStep("review")}>Kembali</button>
-              <button className="primary-button" onClick={() => void submitEmailAndPublish()}>Kirim link</button>
+            <div className="panel-footer compact">
+              <div className="footer-note">
+                <strong>Email tamu</strong>
+                <span>Link hasil akan tetap tersedia juga lewat QR.</span>
+              </div>
+              <div className="dual-actions stacked-mobile">
+                <button className="secondary-button" onClick={() => setStep("review")}>Kembali</button>
+                <button className="primary-button" onClick={() => void submitEmailAndPublish()}>Kirim link</button>
+              </div>
             </div>
           </div>
         </section>
@@ -479,7 +491,13 @@ export default function App() {
             {qrUrl ? <img className="qr-image" src={qrUrl} alt="QR untuk folder Google Drive sesi photobooth" /> : <div className="qr-placeholder" />}
             <p className="operator-help">{driveStatus.mode === "authenticated" ? "QR ini menuju folder Google Drive asli." : "QR ini akan menuju Cloudflare domain atau fallback yang aktif."}</p>
             <p className="operator-help">{cloudStatus.mode === "configured" ? `Cloudflare aktif di ${cloudStatus.baseUrl}. Publish akan diarahkan ke sana lebih dulu.` : "Cloudflare belum aktif. Publish akan memakai fallback lain."}</p>
-            <button className="primary-button full" onClick={resetToWelcome}>Selesai</button>
+            <div className="panel-footer compact">
+              <div className="footer-note">
+                <strong>Hasil siap diambil</strong>
+                <span>Scan QR atau cek email yang tadi sudah diisi.</span>
+              </div>
+              <button className="primary-button full" onClick={resetToWelcome}>Selesai</button>
+            </div>
           </div>
         </section>
       )}
