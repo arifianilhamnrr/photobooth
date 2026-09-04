@@ -319,13 +319,13 @@ export default function App() {
   return (
     <main className="app-shell" style={{ ["--accent-color" as string]: settings.accentColor }}>
       <header className="topbar">
-        <div>
+        <div className="topbar-branding">
           <p className="topbar-label">PHOT OBOOTH</p>
           <strong className="brand">{settings.eventName}</strong>
         </div>
         <div className="topbar-meta">
-          <span className="status-pill"><i /> {systemStatus}</span>
-          <span className="status-pill muted">{queueStatus}</span>
+          <span className="status-pill"><i /> {cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? "Kamera siap" : "Cek kamera"}</span>
+          <span className="status-pill muted compact-status">{queueStatus}</span>
           <button className="secondary-button operator-toggle" onClick={() => setOperatorOpen(true)}>Operator</button>
         </div>
       </header>
@@ -521,6 +521,7 @@ export default function App() {
               <div>
                 <p className="eyebrow">OPERATOR</p>
                 <h3>Booth control</h3>
+                <p className="operator-help">Atur kamera, publish, dan mode kiosk tanpa mengganggu alur tamu.</p>
               </div>
               <button className="secondary-button small operator-close" onClick={() => setOperatorOpen(false)}>Tutup</button>
             </div>
