@@ -927,6 +927,46 @@ button {
   outline-offset: 2px;
 }
 
+.optional-email-box {
+  display: grid;
+  gap: 9px;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid #34383c;
+  border-radius: 14px;
+  background: #111315;
+}
+
+.optional-email-box > strong {
+  font-size: 14px;
+}
+
+.optional-email-box > span {
+  color: #aab0b4;
+  font-size: 13px;
+}
+
+.optional-email-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.optional-email-row .email-input,
+.optional-email-row .secondary-button {
+  min-height: 46px;
+}
+
+.optional-email-row .email-input {
+  font-size: 15px;
+}
+
+.optional-email-row .secondary-button {
+  padding-inline: 14px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
 .error-text {
   margin: 10px 0 0;
   color: #ff9680;

@@ -77,6 +77,7 @@ export interface BoothSettings {
   autoResetSeconds: number;
   driveRootFolderName: string;
   slotOverrides: Record<string, TemplateSlot[]>;
+  frameRevision: number;
 }
 
 export interface QueueItem {
@@ -125,7 +126,8 @@ export const defaultSettings: BoothSettings = {
   poseBreakSeconds: 2,
   autoResetSeconds: 60,
   driveRootFolderName: "Photobooth Sessions",
-  slotOverrides: {}
+  slotOverrides: {},
+  frameRevision: 2
 };
 
 export const templates: PhotoTemplate[] = [
@@ -151,16 +153,16 @@ export const templates: PhotoTemplate[] = [
     name: "Frame Aurora",
     description: "Warna cerah dan playful untuk hasil yang lebih rame.",
     captureCount: 6,
-    width: 386,
-    height: 574,
+    width: 3764,
+    height: 5610,
     overlayAsset: "frame-2.png",
     slots: [
-      { id: "slot-1", photoIndex: 0, x: 22, y: 82, width: 141, height: 141, rotation: 0, cornerRadius: 5 },
-      { id: "slot-2", photoIndex: 1, x: 219, y: 99, width: 142, height: 119, rotation: 0, cornerRadius: 5 },
-      { id: "slot-3", photoIndex: 2, x: 21, y: 232, width: 133, height: 139, rotation: 0, cornerRadius: 5 },
-      { id: "slot-4", photoIndex: 3, x: 219, y: 236, width: 142, height: 118, rotation: 0, cornerRadius: 5 },
-      { id: "slot-5", photoIndex: 4, x: 22, y: 380, width: 140, height: 140, rotation: 0, cornerRadius: 5 },
-      { id: "slot-6", photoIndex: 5, x: 219, y: 373, width: 142, height: 118, rotation: 0, cornerRadius: 5 }
+      { id: "slot-1", photoIndex: 0, x: 220, y: 810, width: 1370, height: 1370, rotation: 0, cornerRadius: 50 },
+      { id: "slot-2", photoIndex: 1, x: 2142, y: 970, width: 1380, height: 1150, rotation: 0, cornerRadius: 50 },
+      { id: "slot-3", photoIndex: 2, x: 220, y: 2270, width: 1280, height: 1360, rotation: 0, cornerRadius: 50 },
+      { id: "slot-4", photoIndex: 3, x: 2142, y: 2310, width: 1390, height: 1150, rotation: 0, cornerRadius: 50 },
+      { id: "slot-5", photoIndex: 4, x: 220, y: 3720, width: 1350, height: 1360, rotation: 0, cornerRadius: 50 },
+      { id: "slot-6", photoIndex: 5, x: 2142, y: 3650, width: 1390, height: 1150, rotation: 0, cornerRadius: 50 }
     ]
   },
   {
@@ -168,16 +170,16 @@ export const templates: PhotoTemplate[] = [
     name: "Frame Garden",
     description: "Versi yang paling netral untuk default event booth.",
     captureCount: 6,
-    width: 386,
-    height: 574,
+    width: 3764,
+    height: 5610,
     overlayAsset: "frame-3.png",
     slots: [
-      { id: "slot-1", photoIndex: 0, x: 17, y: 72, width: 158, height: 138, rotation: 0, cornerRadius: 5 },
-      { id: "slot-2", photoIndex: 1, x: 210, y: 72, width: 158, height: 138, rotation: 0, cornerRadius: 5 },
-      { id: "slot-3", photoIndex: 2, x: 17, y: 218, width: 158, height: 138, rotation: 0, cornerRadius: 5 },
-      { id: "slot-4", photoIndex: 3, x: 210, y: 218, width: 158, height: 138, rotation: 0, cornerRadius: 5 },
-      { id: "slot-5", photoIndex: 4, x: 17, y: 363, width: 158, height: 138, rotation: 0, cornerRadius: 5 },
-      { id: "slot-6", photoIndex: 5, x: 210, y: 363, width: 158, height: 138, rotation: 0, cornerRadius: 5 }
+      { id: "slot-1", photoIndex: 0, x: 190, y: 730, width: 1490, height: 1300, rotation: 0, cornerRadius: 50 },
+      { id: "slot-2", photoIndex: 1, x: 2082, y: 730, width: 1490, height: 1300, rotation: 0, cornerRadius: 50 },
+      { id: "slot-3", photoIndex: 2, x: 190, y: 2160, width: 1490, height: 1290, rotation: 0, cornerRadius: 50 },
+      { id: "slot-4", photoIndex: 3, x: 2082, y: 2160, width: 1490, height: 1290, rotation: 0, cornerRadius: 50 },
+      { id: "slot-5", photoIndex: 4, x: 190, y: 3580, width: 1490, height: 1300, rotation: 0, cornerRadius: 50 },
+      { id: "slot-6", photoIndex: 5, x: 2082, y: 3580, width: 1490, height: 1300, rotation: 0, cornerRadius: 50 }
     ]
   },
   {
@@ -185,16 +187,16 @@ export const templates: PhotoTemplate[] = [
     name: "Frame Midnight",
     description: "Nuansa gelap dan lebih dramatis untuk strip malam.",
     captureCount: 6,
-    width: 386,
-    height: 574,
+    width: 3764,
+    height: 5610,
     overlayAsset: "frame-4.png",
     slots: [
-      { id: "slot-1", photoIndex: 0, x: 13, y: 108, width: 166, height: 124, rotation: 0, cornerRadius: 4 },
-      { id: "slot-2", photoIndex: 1, x: 207, y: 108, width: 166, height: 124, rotation: 0, cornerRadius: 4 },
-      { id: "slot-3", photoIndex: 2, x: 13, y: 237, width: 166, height: 124, rotation: 0, cornerRadius: 4 },
-      { id: "slot-4", photoIndex: 3, x: 207, y: 237, width: 166, height: 124, rotation: 0, cornerRadius: 4 },
-      { id: "slot-5", photoIndex: 4, x: 13, y: 367, width: 166, height: 124, rotation: 0, cornerRadius: 4 },
-      { id: "slot-6", photoIndex: 5, x: 207, y: 367, width: 166, height: 124, rotation: 0, cornerRadius: 4 }
+      { id: "slot-1", photoIndex: 0, x: 130, y: 1060, width: 1620, height: 1250, rotation: 0, cornerRadius: 40 },
+      { id: "slot-2", photoIndex: 1, x: 2020, y: 1060, width: 1620, height: 1250, rotation: 0, cornerRadius: 40 },
+      { id: "slot-3", photoIndex: 2, x: 130, y: 2310, width: 1620, height: 1250, rotation: 0, cornerRadius: 40 },
+      { id: "slot-4", photoIndex: 3, x: 2020, y: 2310, width: 1620, height: 1250, rotation: 0, cornerRadius: 40 },
+      { id: "slot-5", photoIndex: 4, x: 130, y: 3560, width: 1620, height: 1250, rotation: 0, cornerRadius: 40 },
+      { id: "slot-6", photoIndex: 5, x: 2020, y: 3560, width: 1620, height: 1250, rotation: 0, cornerRadius: 40 }
     ]
   },
   {
@@ -202,16 +204,16 @@ export const templates: PhotoTemplate[] = [
     name: "Frame Bloom",
     description: "Pilihan lebih dekoratif dengan warna yang lebih manis.",
     captureCount: 6,
-    width: 386,
-    height: 574,
+    width: 3764,
+    height: 5610,
     overlayAsset: "frame-5.png",
     slots: [
-      { id: "slot-1", photoIndex: 0, x: 31, y: 91, width: 130, height: 98, rotation: 0, cornerRadius: 5 },
-      { id: "slot-2", photoIndex: 1, x: 223, y: 127, width: 130, height: 90, rotation: 0, cornerRadius: 5 },
-      { id: "slot-3", photoIndex: 2, x: 31, y: 211, width: 130, height: 89, rotation: 0, cornerRadius: 5 },
-      { id: "slot-4", photoIndex: 3, x: 223, y: 238, width: 130, height: 90, rotation: 0, cornerRadius: 5 },
-      { id: "slot-5", photoIndex: 4, x: 31, y: 322, width: 130, height: 91, rotation: 0, cornerRadius: 5 },
-      { id: "slot-6", photoIndex: 5, x: 223, y: 350, width: 130, height: 89, rotation: 0, cornerRadius: 5 }
+      { id: "slot-1", photoIndex: 0, x: 310, y: 980, width: 1260, height: 860, rotation: 0, cornerRadius: 50 },
+      { id: "slot-2", photoIndex: 1, x: 2192, y: 1250, width: 1260, height: 860, rotation: 0, cornerRadius: 50 },
+      { id: "slot-3", photoIndex: 2, x: 310, y: 2070, width: 1260, height: 860, rotation: 0, cornerRadius: 50 },
+      { id: "slot-4", photoIndex: 3, x: 2192, y: 2340, width: 1260, height: 860, rotation: 0, cornerRadius: 50 },
+      { id: "slot-5", photoIndex: 4, x: 310, y: 3160, width: 1260, height: 860, rotation: 0, cornerRadius: 50 },
+      { id: "slot-6", photoIndex: 5, x: 2192, y: 3430, width: 1260, height: 860, rotation: 0, cornerRadius: 50 }
     ]
   }
 ];

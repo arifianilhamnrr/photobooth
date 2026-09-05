@@ -22,7 +22,7 @@ import {
   type TemplateSlot
 } from "@photobooth/domain";
 
-type Step = "welcome" | "template" | "ready" | "capture" | "shot-review" | "review" | "email" | "saving" | "result";
+type Step = "welcome" | "template" | "ready" | "capture" | "shot-review" | "review" | "saving" | "result";
 
 const CAPTURE_INTERVAL_MS = 900;
 
@@ -63,6 +63,8 @@ export default function App() {
   const [captureError, setCaptureError] = useState("");
   const [recipientEmail, setRecipientEmail] = useState("");
   const [emailError, setEmailError] = useState("");
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
   const [kioskEnabled, setKioskEnabled] = useState(true);
   const [editorTemplateId, setEditorTemplateId] = useState(templates[0].id);
   const [editorSlotIndex, setEditorSlotIndex] = useState(0);
@@ -300,6 +302,8 @@ export default function App() {
     setQrUrl("");
     setRecipientEmail("");
     setEmailError("");
+    setEmailSent(false);
+    setEmailSending(false);
     setQueueStatus("Pilih frame dulu sebelum mulai foto.");
     setStep("template");
   }
@@ -367,36 +371,53 @@ export default function App() {
     setStep("capture");
   }
 
-  function finishReview() {
+  async function finishReview() {
     if (!session || shots.length !== template.captureCount) return;
-    setEmailError("");
-    setStep("email");
+    setStep("saving");
+    setQueueStatus("Foto kamu sudah aman. Sedang mengunggah hasil.");
+    try {
+      const published = await window.photobooth.sessions.publish({ sessionId: session.id });
+      setSession(published);
+      updateSessionCollection(published);
+      setQueue((current) => {
+        const nextItem: QueueItem = {
+          sessionId: published.id,
+          status: "published",
+          createdAt: published.createdAt,
+          updatedAt: published.updatedAt,
+          driveUrl: published.driveUrl
+        };
+        return [nextItem, ...current.filter((item) => item.sessionId !== published.id)];
+      });
+      setStep("result");
+      setQueueStatus("Link hasil dan QR sudah siap.");
+    } catch (error) {
+      setEmailError(error instanceof Error ? error.message : "Upload gagal. Coba lagi.");
+      setStep("review");
+      setQueueStatus("Upload belum berhasil. Foto tetap aman di laptop.");
+    }
   }
 
-  async function submitEmailAndPublish() {
+  async function sendOptionalEmail() {
     if (!session) return;
     const email = recipientEmail.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setEmailError("Masukkan email yang valid dulu.");
+      setEmailError("Masukkan email yang valid.");
       return;
     }
-    setStep("saving");
-    setQueueStatus("Foto kamu sudah aman. Kami sedang mengirim link ke email kamu.");
-    const published = await window.photobooth.sessions.publish({ sessionId: session.id, recipientEmail: email });
-    setSession(published);
-    updateSessionCollection(published);
-    setQueue((current) => {
-      const nextItem: QueueItem = {
-        sessionId: published.id,
-        status: "published",
-        createdAt: published.createdAt,
-        updatedAt: published.updatedAt,
-        driveUrl: published.driveUrl
-      };
-      return [nextItem, ...current.filter((item) => item.sessionId !== published.id)];
-    });
-    setStep("result");
-    setQueueStatus("Link hasil siap dan email sudah diproses.");
+    setEmailSending(true);
+    setEmailError("");
+    try {
+      const updated = await window.photobooth.sessions.sendEmail({ sessionId: session.id, recipientEmail: email });
+      setSession(updated);
+      updateSessionCollection(updated);
+      setEmailSent(true);
+      setQueueStatus(`Link berhasil dikirim ke ${email}.`);
+    } catch (error) {
+      setEmailError(error instanceof Error ? error.message : "Email gagal dikirim.");
+    } finally {
+      setEmailSending(false);
+    }
   }
 
   function resetToWelcome() {
@@ -404,6 +425,8 @@ export default function App() {
     setQrUrl("");
     setReplaceIndex(null);
     setRetakeCountRecorded(false);
+    setEmailSent(false);
+    setEmailSending(false);
     setQueueStatus("Siap memulai sesi baru");
     setStep("welcome");
   }
@@ -546,8 +569,8 @@ export default function App() {
         <section className="welcome-layout screen-card">
           <div className="copy-column">
             <p className="eyebrow">EVENT KIOSK</p>
-            <h1>Siap bikin strip 6 foto yang langsung bisa dikirim?</h1>
-            <p className="body">Setelah selesai foto, tamu isi email lalu link hasil otomatis dikirim dan tetap tersedia lewat QR.</p>
+            <h1>Siap bikin strip 6 foto yang langsung bisa diambil?</h1>
+            <p className="body">Setelah selesai, hasil diunggah dan QR langsung tersedia. Link juga bisa dikirim ke email kalau diperlukan.</p>
             <div className="welcome-actions">
               <button className="primary-button" onClick={() => void startSession()}>Mulai</button>
             </div>
@@ -739,46 +762,10 @@ export default function App() {
             <div className="panel-footer">
               <div className="footer-note">
                 <strong>{template.captureCount} foto terpasang</strong>
-                <span>Lanjutkan untuk kirim link ke email tamu.</span>
+                <span>Lanjutkan untuk upload dan membuat QR hasil.</span>
               </div>
-              <button className="primary-button full" onClick={() => void finishReview()}>Lanjut kirim link</button>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {step === "email" && session && (
-        <section className="result-layout screen-card">
-          <div className="result-board narrow">
-            {session.finalStripDataUrl ? <FinalStripImage dataUrl={session.finalStripDataUrl} /> : <StripShowcase template={template} shots={shots} filterCss={filter.cssFilter} />}
-          </div>
-          <div className="qr-panel">
-            <p className="eyebrow">KIRIM LINK</p>
-            <h2>Masukkan email dulu.</h2>
-            <p className="body small">Link download hasil photobooth akan dikirim ke email ini lewat Brevo. Setelah itu QR tetap bisa dipindai di layar berikutnya.</p>
-            <label className="input-label" htmlFor="recipient-email">Email penerima</label>
-            <input
-              id="recipient-email"
-              className="email-input"
-              type="email"
-              value={recipientEmail}
-              onChange={(event) => {
-                setRecipientEmail(event.target.value);
-                if (emailError) setEmailError("");
-              }}
-              placeholder="nama@email.com"
-              autoFocus
-            />
-            {emailError ? <p className="error-text">{emailError}</p> : <p className="operator-help">Contoh: nama@email.com</p>}
-            <div className="panel-footer compact">
-              <div className="footer-note">
-                <strong>Email tamu</strong>
-                <span>Link hasil akan tetap tersedia juga lewat QR.</span>
-              </div>
-              <div className="dual-actions stacked-mobile">
-                <button className="secondary-button" onClick={() => setStep("review")}>Kembali</button>
-                <button className="primary-button" onClick={() => void submitEmailAndPublish()}>Kirim link</button>
-              </div>
+              {emailError && <p className="error-text">{emailError}</p>}
+              <button className="primary-button full" onClick={() => void finishReview()}>Upload hasil</button>
             </div>
           </div>
         </section>
@@ -789,7 +776,7 @@ export default function App() {
           <div className="saving-orb" />
           <p className="eyebrow">MENYIMPAN</p>
           <h2>Foto kamu sudah aman.</h2>
-          <p className="body small">Kami sedang mengunggah hasil dan mengirim link download ke email yang kamu isi.</p>
+          <p className="body small">Kami sedang mengunggah hasil dan menyiapkan link download.</p>
         </section>
       )}
 
@@ -801,14 +788,33 @@ export default function App() {
           <div className="qr-panel">
             <p className="eyebrow">QR SIAP</p>
             <h2>Scan untuk ambil fotomu.</h2>
-            <p className="body small">Link hasil sesi {session.id} sudah siap. {session.recipientEmail ? `Kami juga kirim link ini ke ${session.recipientEmail}.` : "Link ini tetap bisa dibuka siapa pun yang punya QR-nya."}</p>
-            {qrUrl ? <img className="qr-image" src={qrUrl} alt="QR untuk folder Google Drive sesi photobooth" /> : <div className="qr-placeholder" />}
+            <p className="body small">Link hasil sesi {session.id} sudah siap. Scan QR untuk melihat dan download fotomu.</p>
+            {qrUrl ? <img className="qr-image" src={qrUrl} alt="QR untuk membuka hasil photobooth" /> : <div className="qr-placeholder" />}
+            <div className="optional-email-box">
+              <strong>{emailSent ? "Email berhasil dikirim" : "Kirim link ke email? (opsional)"}</strong>
+              {!emailSent && (
+                <div className="optional-email-row">
+                  <input
+                    className="email-input"
+                    type="email"
+                    value={recipientEmail}
+                    onChange={(event) => { setRecipientEmail(event.target.value); setEmailError(""); }}
+                    placeholder="nama@email.com"
+                  />
+                  <button className="secondary-button" disabled={emailSending} onClick={() => void sendOptionalEmail()}>
+                    {emailSending ? "Mengirim..." : "Kirim email"}
+                  </button>
+                </div>
+              )}
+              {emailSent && <span>Link dikirim ke {session.recipientEmail}.</span>}
+              {emailError && <p className="error-text">{emailError}</p>}
+            </div>
             <div className="panel-footer compact">
               <div className="footer-note">
                 <strong>Hasil siap diambil</strong>
-                <span>Scan QR atau cek email yang tadi sudah diisi.</span>
+                <span>QR sudah aktif. Email boleh dilewati.</span>
               </div>
-              <button className="primary-button full" onClick={resetToWelcome}>Selesai</button>
+              <button className="primary-button full" onClick={resetToWelcome}>{emailSent ? "Selesai" : "Selesai tanpa email"}</button>
             </div>
           </div>
         </section>

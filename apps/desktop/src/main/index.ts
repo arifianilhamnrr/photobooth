@@ -73,6 +73,10 @@ interface CaptureShotInput {
 
 interface PublishSessionInput {
   sessionId: string;
+}
+
+interface SendSessionEmailInput {
+  sessionId: string;
   recipientEmail: string;
 }
 
@@ -193,14 +197,6 @@ async function simulatePublish(sessionId: string): Promise<StoredSession> {
   const cloudStatus = cloudflareService.getStatus();
   if (cloudStatus.mode === "configured") {
     const result = await cloudflareService.publishSession(syncing, eventName);
-    if (syncing.recipientEmail) {
-      await brevoEmailService.sendDownloadLink({
-        to: syncing.recipientEmail,
-        eventName,
-        sessionId: syncing.id,
-        publicUrl: result.folderUrl
-      });
-    }
     const published = updateSession(syncing, {
       status: "published",
       driveUrl: result.folderUrl
@@ -327,14 +323,26 @@ app.whenReady().then(() => {
   });
   ipcMain.handle("session:publish", async (_event, input: PublishSessionInput) => {
     const session = await getSession(input.sessionId);
-    const recipientEmail = input.recipientEmail.trim().toLowerCase();
-    if (!isValidEmail(recipientEmail)) {
-      throw new Error("Email tidak valid");
-    }
     const rendered = session.finalStripPath ? session : await renderFinalStripForSession(session);
-    const withEmail = updateSession(rendered, { recipientEmail });
-    await saveSession(withEmail);
+    await saveSession(rendered);
     return simulatePublish(input.sessionId);
+  });
+  ipcMain.handle("session:send-email", async (_event, input: SendSessionEmailInput) => {
+    const session = await getSession(input.sessionId);
+    const recipientEmail = input.recipientEmail.trim().toLowerCase();
+    if (!isValidEmail(recipientEmail)) throw new Error("Email tidak valid");
+    if (!session.driveUrl) throw new Error("Link hasil belum tersedia");
+    const eventName = readSnapshotFromDatabase(database).settings.eventName;
+    const result = await brevoEmailService.sendDownloadLink({
+      to: recipientEmail,
+      eventName,
+      sessionId: session.id,
+      publicUrl: session.driveUrl
+    });
+    if (result.status !== "sent") throw new Error(result.detail ?? "Email gagal dikirim");
+    const updated = updateSession(session, { recipientEmail });
+    await saveSession(updated);
+    return updated;
   });
   ipcMain.handle("session:update-config", async (_event, input: UpdateSessionConfigInput) => {
     const session = await getSession(input.sessionId);

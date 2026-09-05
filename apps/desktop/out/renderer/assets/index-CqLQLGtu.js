@@ -14581,10 +14581,10 @@ function requireBrowser() {
 var browserExports = requireBrowser();
 const QRCode = /* @__PURE__ */ getDefaultExportFromCjs(browserExports);
 const frame1Url = "" + new URL("frame-1-C-bQ9HFh.png", import.meta.url).href;
-const frame2Url = "" + new URL("frame-2-CDadb7rB.png", import.meta.url).href;
-const frame3Url = "" + new URL("frame-3-DFD0oSHh.png", import.meta.url).href;
-const frame4Url = "" + new URL("frame-4-DRTOKaIU.png", import.meta.url).href;
-const frame5Url = "" + new URL("frame-5-S7xnk1hu.png", import.meta.url).href;
+const frame2Url = "" + new URL("frame-2-GbL-ZT6m.png", import.meta.url).href;
+const frame3Url = "" + new URL("frame-3-D3rFQM-6.png", import.meta.url).href;
+const frame4Url = "" + new URL("frame-4-Be0584ZT.png", import.meta.url).href;
+const frame5Url = "" + new URL("frame-5-C04NFooD.png", import.meta.url).href;
 const filters = [
   { id: "original", label: "Original", cssFilter: "none" },
   { id: "mono", label: "Mono", cssFilter: "grayscale(1) contrast(1.08)" },
@@ -14600,7 +14600,8 @@ const defaultSettings = {
   poseBreakSeconds: 2,
   autoResetSeconds: 60,
   driveRootFolderName: "Photobooth Sessions",
-  slotOverrides: {}
+  slotOverrides: {},
+  frameRevision: 2
 };
 const templates = [
   {
@@ -14625,16 +14626,16 @@ const templates = [
     name: "Frame Aurora",
     description: "Warna cerah dan playful untuk hasil yang lebih rame.",
     captureCount: 6,
-    width: 386,
-    height: 574,
+    width: 3764,
+    height: 5610,
     overlayAsset: "frame-2.png",
     slots: [
-      { id: "slot-1", photoIndex: 0, x: 22, y: 82, width: 141, height: 141, rotation: 0, cornerRadius: 5 },
-      { id: "slot-2", photoIndex: 1, x: 219, y: 99, width: 142, height: 119, rotation: 0, cornerRadius: 5 },
-      { id: "slot-3", photoIndex: 2, x: 21, y: 232, width: 133, height: 139, rotation: 0, cornerRadius: 5 },
-      { id: "slot-4", photoIndex: 3, x: 219, y: 236, width: 142, height: 118, rotation: 0, cornerRadius: 5 },
-      { id: "slot-5", photoIndex: 4, x: 22, y: 380, width: 140, height: 140, rotation: 0, cornerRadius: 5 },
-      { id: "slot-6", photoIndex: 5, x: 219, y: 373, width: 142, height: 118, rotation: 0, cornerRadius: 5 }
+      { id: "slot-1", photoIndex: 0, x: 220, y: 810, width: 1370, height: 1370, rotation: 0, cornerRadius: 50 },
+      { id: "slot-2", photoIndex: 1, x: 2142, y: 970, width: 1380, height: 1150, rotation: 0, cornerRadius: 50 },
+      { id: "slot-3", photoIndex: 2, x: 220, y: 2270, width: 1280, height: 1360, rotation: 0, cornerRadius: 50 },
+      { id: "slot-4", photoIndex: 3, x: 2142, y: 2310, width: 1390, height: 1150, rotation: 0, cornerRadius: 50 },
+      { id: "slot-5", photoIndex: 4, x: 220, y: 3720, width: 1350, height: 1360, rotation: 0, cornerRadius: 50 },
+      { id: "slot-6", photoIndex: 5, x: 2142, y: 3650, width: 1390, height: 1150, rotation: 0, cornerRadius: 50 }
     ]
   },
   {
@@ -14642,16 +14643,16 @@ const templates = [
     name: "Frame Garden",
     description: "Versi yang paling netral untuk default event booth.",
     captureCount: 6,
-    width: 386,
-    height: 574,
+    width: 3764,
+    height: 5610,
     overlayAsset: "frame-3.png",
     slots: [
-      { id: "slot-1", photoIndex: 0, x: 17, y: 72, width: 158, height: 138, rotation: 0, cornerRadius: 5 },
-      { id: "slot-2", photoIndex: 1, x: 210, y: 72, width: 158, height: 138, rotation: 0, cornerRadius: 5 },
-      { id: "slot-3", photoIndex: 2, x: 17, y: 218, width: 158, height: 138, rotation: 0, cornerRadius: 5 },
-      { id: "slot-4", photoIndex: 3, x: 210, y: 218, width: 158, height: 138, rotation: 0, cornerRadius: 5 },
-      { id: "slot-5", photoIndex: 4, x: 17, y: 363, width: 158, height: 138, rotation: 0, cornerRadius: 5 },
-      { id: "slot-6", photoIndex: 5, x: 210, y: 363, width: 158, height: 138, rotation: 0, cornerRadius: 5 }
+      { id: "slot-1", photoIndex: 0, x: 190, y: 730, width: 1490, height: 1300, rotation: 0, cornerRadius: 50 },
+      { id: "slot-2", photoIndex: 1, x: 2082, y: 730, width: 1490, height: 1300, rotation: 0, cornerRadius: 50 },
+      { id: "slot-3", photoIndex: 2, x: 190, y: 2160, width: 1490, height: 1290, rotation: 0, cornerRadius: 50 },
+      { id: "slot-4", photoIndex: 3, x: 2082, y: 2160, width: 1490, height: 1290, rotation: 0, cornerRadius: 50 },
+      { id: "slot-5", photoIndex: 4, x: 190, y: 3580, width: 1490, height: 1300, rotation: 0, cornerRadius: 50 },
+      { id: "slot-6", photoIndex: 5, x: 2082, y: 3580, width: 1490, height: 1300, rotation: 0, cornerRadius: 50 }
     ]
   },
   {
@@ -14659,16 +14660,16 @@ const templates = [
     name: "Frame Midnight",
     description: "Nuansa gelap dan lebih dramatis untuk strip malam.",
     captureCount: 6,
-    width: 386,
-    height: 574,
+    width: 3764,
+    height: 5610,
     overlayAsset: "frame-4.png",
     slots: [
-      { id: "slot-1", photoIndex: 0, x: 13, y: 108, width: 166, height: 124, rotation: 0, cornerRadius: 4 },
-      { id: "slot-2", photoIndex: 1, x: 207, y: 108, width: 166, height: 124, rotation: 0, cornerRadius: 4 },
-      { id: "slot-3", photoIndex: 2, x: 13, y: 237, width: 166, height: 124, rotation: 0, cornerRadius: 4 },
-      { id: "slot-4", photoIndex: 3, x: 207, y: 237, width: 166, height: 124, rotation: 0, cornerRadius: 4 },
-      { id: "slot-5", photoIndex: 4, x: 13, y: 367, width: 166, height: 124, rotation: 0, cornerRadius: 4 },
-      { id: "slot-6", photoIndex: 5, x: 207, y: 367, width: 166, height: 124, rotation: 0, cornerRadius: 4 }
+      { id: "slot-1", photoIndex: 0, x: 130, y: 1060, width: 1620, height: 1250, rotation: 0, cornerRadius: 40 },
+      { id: "slot-2", photoIndex: 1, x: 2020, y: 1060, width: 1620, height: 1250, rotation: 0, cornerRadius: 40 },
+      { id: "slot-3", photoIndex: 2, x: 130, y: 2310, width: 1620, height: 1250, rotation: 0, cornerRadius: 40 },
+      { id: "slot-4", photoIndex: 3, x: 2020, y: 2310, width: 1620, height: 1250, rotation: 0, cornerRadius: 40 },
+      { id: "slot-5", photoIndex: 4, x: 130, y: 3560, width: 1620, height: 1250, rotation: 0, cornerRadius: 40 },
+      { id: "slot-6", photoIndex: 5, x: 2020, y: 3560, width: 1620, height: 1250, rotation: 0, cornerRadius: 40 }
     ]
   },
   {
@@ -14676,16 +14677,16 @@ const templates = [
     name: "Frame Bloom",
     description: "Pilihan lebih dekoratif dengan warna yang lebih manis.",
     captureCount: 6,
-    width: 386,
-    height: 574,
+    width: 3764,
+    height: 5610,
     overlayAsset: "frame-5.png",
     slots: [
-      { id: "slot-1", photoIndex: 0, x: 31, y: 91, width: 130, height: 98, rotation: 0, cornerRadius: 5 },
-      { id: "slot-2", photoIndex: 1, x: 223, y: 127, width: 130, height: 90, rotation: 0, cornerRadius: 5 },
-      { id: "slot-3", photoIndex: 2, x: 31, y: 211, width: 130, height: 89, rotation: 0, cornerRadius: 5 },
-      { id: "slot-4", photoIndex: 3, x: 223, y: 238, width: 130, height: 90, rotation: 0, cornerRadius: 5 },
-      { id: "slot-5", photoIndex: 4, x: 31, y: 322, width: 130, height: 91, rotation: 0, cornerRadius: 5 },
-      { id: "slot-6", photoIndex: 5, x: 223, y: 350, width: 130, height: 89, rotation: 0, cornerRadius: 5 }
+      { id: "slot-1", photoIndex: 0, x: 310, y: 980, width: 1260, height: 860, rotation: 0, cornerRadius: 50 },
+      { id: "slot-2", photoIndex: 1, x: 2192, y: 1250, width: 1260, height: 860, rotation: 0, cornerRadius: 50 },
+      { id: "slot-3", photoIndex: 2, x: 310, y: 2070, width: 1260, height: 860, rotation: 0, cornerRadius: 50 },
+      { id: "slot-4", photoIndex: 3, x: 2192, y: 2340, width: 1260, height: 860, rotation: 0, cornerRadius: 50 },
+      { id: "slot-5", photoIndex: 4, x: 310, y: 3160, width: 1260, height: 860, rotation: 0, cornerRadius: 50 },
+      { id: "slot-6", photoIndex: 5, x: 2192, y: 3430, width: 1260, height: 860, rotation: 0, cornerRadius: 50 }
     ]
   }
 ];
@@ -14731,6 +14732,8 @@ function App() {
   const [captureError, setCaptureError] = reactExports.useState("");
   const [recipientEmail, setRecipientEmail] = reactExports.useState("");
   const [emailError, setEmailError] = reactExports.useState("");
+  const [emailSent, setEmailSent] = reactExports.useState(false);
+  const [emailSending, setEmailSending] = reactExports.useState(false);
   const [kioskEnabled, setKioskEnabled] = reactExports.useState(true);
   const [editorTemplateId, setEditorTemplateId] = reactExports.useState(templates[0].id);
   const [editorSlotIndex, setEditorSlotIndex] = reactExports.useState(0);
@@ -14941,6 +14944,8 @@ function App() {
     setQrUrl("");
     setRecipientEmail("");
     setEmailError("");
+    setEmailSent(false);
+    setEmailSending(false);
     setQueueStatus("Pilih frame dulu sebelum mulai foto.");
     setStep("template");
   }
@@ -15001,41 +15006,60 @@ function App() {
     setQueueStatus(`Foto ${targetIndex + 1} dibatalkan. Ambil ulang sekarang.`);
     setStep("capture");
   }
-  function finishReview() {
+  async function finishReview() {
     if (!session || shots.length !== template.captureCount) return;
-    setEmailError("");
-    setStep("email");
+    setStep("saving");
+    setQueueStatus("Foto kamu sudah aman. Sedang mengunggah hasil.");
+    try {
+      const published = await window.photobooth.sessions.publish({ sessionId: session.id });
+      setSession(published);
+      updateSessionCollection(published);
+      setQueue((current) => {
+        const nextItem = {
+          sessionId: published.id,
+          status: "published",
+          createdAt: published.createdAt,
+          updatedAt: published.updatedAt,
+          driveUrl: published.driveUrl
+        };
+        return [nextItem, ...current.filter((item) => item.sessionId !== published.id)];
+      });
+      setStep("result");
+      setQueueStatus("Link hasil dan QR sudah siap.");
+    } catch (error) {
+      setEmailError(error instanceof Error ? error.message : "Upload gagal. Coba lagi.");
+      setStep("review");
+      setQueueStatus("Upload belum berhasil. Foto tetap aman di laptop.");
+    }
   }
-  async function submitEmailAndPublish() {
+  async function sendOptionalEmail() {
     if (!session) return;
     const email = recipientEmail.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setEmailError("Masukkan email yang valid dulu.");
+      setEmailError("Masukkan email yang valid.");
       return;
     }
-    setStep("saving");
-    setQueueStatus("Foto kamu sudah aman. Kami sedang mengirim link ke email kamu.");
-    const published = await window.photobooth.sessions.publish({ sessionId: session.id, recipientEmail: email });
-    setSession(published);
-    updateSessionCollection(published);
-    setQueue((current) => {
-      const nextItem = {
-        sessionId: published.id,
-        status: "published",
-        createdAt: published.createdAt,
-        updatedAt: published.updatedAt,
-        driveUrl: published.driveUrl
-      };
-      return [nextItem, ...current.filter((item) => item.sessionId !== published.id)];
-    });
-    setStep("result");
-    setQueueStatus("Link hasil siap dan email sudah diproses.");
+    setEmailSending(true);
+    setEmailError("");
+    try {
+      const updated = await window.photobooth.sessions.sendEmail({ sessionId: session.id, recipientEmail: email });
+      setSession(updated);
+      updateSessionCollection(updated);
+      setEmailSent(true);
+      setQueueStatus(`Link berhasil dikirim ke ${email}.`);
+    } catch (error) {
+      setEmailError(error instanceof Error ? error.message : "Email gagal dikirim.");
+    } finally {
+      setEmailSending(false);
+    }
   }
   function resetToWelcome() {
     setSession(null);
     setQrUrl("");
     setReplaceIndex(null);
     setRetakeCountRecorded(false);
+    setEmailSent(false);
+    setEmailSending(false);
     setQueueStatus("Siap memulai sesi baru");
     setStep("welcome");
   }
@@ -15164,8 +15188,8 @@ function App() {
     step === "welcome" && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "welcome-layout screen-card", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "copy-column", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "EVENT KIOSK" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "Siap bikin strip 6 foto yang langsung bisa dikirim?" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body", children: "Setelah selesai foto, tamu isi email lalu link hasil otomatis dikirim dan tetap tersedia lewat QR." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "Siap bikin strip 6 foto yang langsung bisa diambil?" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body", children: "Setelah selesai, hasil diunggah dan QR langsung tersedia. Link juga bisa dikirim ke email kalau diperlukan." }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "welcome-actions", children: /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: () => void startSession(), children: "Mulai" }) })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(StripShowcase, { template, shots: sampleShots(template.captureCount), filterCss: filter.cssFilter })
@@ -15342,44 +15366,10 @@ function App() {
               template.captureCount,
               " foto terpasang"
             ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Lanjutkan untuk kirim link ke email tamu." })
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Lanjutkan untuk upload dan membuat QR hasil." })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button full", onClick: () => void finishReview(), children: "Lanjut kirim link" })
-        ] })
-      ] })
-    ] }),
-    step === "email" && session && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "result-layout screen-card", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "result-board narrow", children: session.finalStripDataUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx(FinalStripImage, { dataUrl: session.finalStripDataUrl }) : /* @__PURE__ */ jsxRuntimeExports.jsx(StripShowcase, { template, shots, filterCss: filter.cssFilter }) }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "qr-panel", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "KIRIM LINK" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "Masukkan email dulu." }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Link download hasil photobooth akan dikirim ke email ini lewat Brevo. Setelah itu QR tetap bisa dipindai di layar berikutnya." }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "input-label", htmlFor: "recipient-email", children: "Email penerima" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "input",
-          {
-            id: "recipient-email",
-            className: "email-input",
-            type: "email",
-            value: recipientEmail,
-            onChange: (event) => {
-              setRecipientEmail(event.target.value);
-              if (emailError) setEmailError("");
-            },
-            placeholder: "nama@email.com",
-            autoFocus: true
-          }
-        ),
-        emailError ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "error-text", children: emailError }) : /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "operator-help", children: "Contoh: nama@email.com" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "panel-footer compact", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "footer-note", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Email tamu" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Link hasil akan tetap tersedia juga lewat QR." })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "dual-actions stacked-mobile", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", onClick: () => setStep("review"), children: "Kembali" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: () => void submitEmailAndPublish(), children: "Kirim link" })
-          ] })
+          emailError && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "error-text", children: emailError }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button full", onClick: () => void finishReview(), children: "Upload hasil" })
         ] })
       ] })
     ] }),
@@ -15387,7 +15377,7 @@ function App() {
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "saving-orb" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "MENYIMPAN" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "Foto kamu sudah aman." }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Kami sedang mengunggah hasil dan mengirim link download ke email yang kamu isi." })
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Kami sedang mengunggah hasil dan menyiapkan link download." })
     ] }),
     step === "result" && session && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "result-layout screen-card", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "result-board narrow", children: session.finalStripDataUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx(FinalStripImage, { dataUrl: session.finalStripDataUrl }) : /* @__PURE__ */ jsxRuntimeExports.jsx(StripShowcase, { template, shots, filterCss: filter.cssFilter }) }),
@@ -15397,16 +15387,40 @@ function App() {
         /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "body small", children: [
           "Link hasil sesi ",
           session.id,
-          " sudah siap. ",
-          session.recipientEmail ? `Kami juga kirim link ini ke ${session.recipientEmail}.` : "Link ini tetap bisa dibuka siapa pun yang punya QR-nya."
+          " sudah siap. Scan QR untuk melihat dan download fotomu."
         ] }),
-        qrUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx("img", { className: "qr-image", src: qrUrl, alt: "QR untuk folder Google Drive sesi photobooth" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "qr-placeholder" }),
+        qrUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx("img", { className: "qr-image", src: qrUrl, alt: "QR untuk membuka hasil photobooth" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "qr-placeholder" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "optional-email-box", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: emailSent ? "Email berhasil dikirim" : "Kirim link ke email? (opsional)" }),
+          !emailSent && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "optional-email-row", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                className: "email-input",
+                type: "email",
+                value: recipientEmail,
+                onChange: (event) => {
+                  setRecipientEmail(event.target.value);
+                  setEmailError("");
+                },
+                placeholder: "nama@email.com"
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", disabled: emailSending, onClick: () => void sendOptionalEmail(), children: emailSending ? "Mengirim..." : "Kirim email" })
+          ] }),
+          emailSent && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+            "Link dikirim ke ",
+            session.recipientEmail,
+            "."
+          ] }),
+          emailError && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "error-text", children: emailError })
+        ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "panel-footer compact", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "footer-note", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Hasil siap diambil" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Scan QR atau cek email yang tadi sudah diisi." })
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "QR sudah aktif. Email boleh dilewati." })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button full", onClick: resetToWelcome, children: "Selesai" })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button full", onClick: resetToWelcome, children: emailSent ? "Selesai" : "Selesai tanpa email" })
         ] })
       ] })
     ] }),

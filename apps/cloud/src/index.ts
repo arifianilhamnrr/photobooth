@@ -14,7 +14,7 @@ app.post("/api/sessions", async (c) => {
   const body = await c.req.json<{
     sessionId: string;
     eventName: string;
-    recipientEmail: string;
+    recipientEmail?: string;
     stripBase64: string;
     originals: Array<{ name: string; base64: string }>;
   }>();
@@ -47,7 +47,7 @@ app.post("/api/sessions", async (c) => {
       body.sessionId,
       body.eventName,
       createdAt,
-      body.recipientEmail,
+      body.recipientEmail ?? null,
       stripKey,
       publicUrl,
       body.originals.length,

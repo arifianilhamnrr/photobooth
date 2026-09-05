@@ -114,6 +114,16 @@ export function openDatabase(filePath: string): DatabaseSync {
   const row = database.prepare("SELECT settings_json FROM app_settings WHERE id = 1").get() as { settings_json: string } | undefined;
   if (!row) {
     database.prepare("INSERT INTO app_settings (id, settings_json) VALUES (1, ?)").run(JSON.stringify(defaultSettings));
+  } else {
+    const settings = JSON.parse(row.settings_json) as Partial<typeof defaultSettings>;
+    if (settings.frameRevision !== defaultSettings.frameRevision) {
+      database.prepare("UPDATE app_settings SET settings_json = ? WHERE id = 1").run(JSON.stringify({
+        ...defaultSettings,
+        ...settings,
+        slotOverrides: {},
+        frameRevision: defaultSettings.frameRevision
+      }));
+    }
   }
 
   const sessionColumns = database.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>;
