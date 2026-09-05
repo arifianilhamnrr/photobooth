@@ -13,6 +13,7 @@ export class CloudflareUploadService {
     if (!this.baseUrl) throw new Error("Cloudflare upload belum dikonfigurasi");
     if (!session.finalStripPath) throw new Error("Strip final belum tersedia");
     const stripBase64 = (await readFile(session.finalStripPath)).toString("base64");
+    const gifBase64 = session.finalGifPath ? (await readFile(session.finalGifPath)).toString("base64") : undefined;
     const originals = await Promise.all(
       session.shots
         .filter((shot) => shot.filePath)
@@ -32,6 +33,7 @@ export class CloudflareUploadService {
         eventName,
         recipientEmail: session.recipientEmail,
         stripBase64,
+        gifBase64,
         originals
       })
     });

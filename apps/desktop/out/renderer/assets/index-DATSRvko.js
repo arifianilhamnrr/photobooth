@@ -14734,6 +14734,7 @@ function App() {
   const [emailError, setEmailError] = reactExports.useState("");
   const [emailSent, setEmailSent] = reactExports.useState(false);
   const [emailSending, setEmailSending] = reactExports.useState(false);
+  const [filterRendering, setFilterRendering] = reactExports.useState(false);
   const [kioskEnabled, setKioskEnabled] = reactExports.useState(true);
   const [editorTemplateId, setEditorTemplateId] = reactExports.useState(templates[0].id);
   const [editorSlotIndex, setEditorSlotIndex] = reactExports.useState(0);
@@ -14932,8 +14933,10 @@ function App() {
   }
   async function startSession() {
     const defaultTemplateId = templates.find((item) => item.id === "frame-3")?.id ?? templates[0].id;
+    const defaultFilterId = "original";
     setTemplateId(defaultTemplateId);
-    const nextSession = await window.photobooth.sessions.create({ templateId: defaultTemplateId, filterId });
+    setFilterId(defaultFilterId);
+    const nextSession = await window.photobooth.sessions.create({ templateId: defaultTemplateId, filterId: defaultFilterId });
     setSession(nextSession);
     updateSessionCollection(nextSession);
     setCaptureIndex(0);
@@ -15030,6 +15033,22 @@ function App() {
       setEmailError(error instanceof Error ? error.message : "Upload gagal. Coba lagi.");
       setStep("review");
       setQueueStatus("Upload belum berhasil. Foto tetap aman di laptop.");
+    }
+  }
+  async function applyFinalFilter(nextFilterId) {
+    if (!session || nextFilterId === session.filterId || filterRendering) return;
+    setFilterRendering(true);
+    setQueueStatus("Menerapkan filter ke strip dan GIF.");
+    try {
+      const updated = await window.photobooth.sessions.applyFilter({ sessionId: session.id, filterId: nextFilterId });
+      setFilterId(nextFilterId);
+      setSession(updated);
+      updateSessionCollection(updated);
+      setQueueStatus(`${filters.find((item) => item.id === nextFilterId)?.label ?? "Filter"} diterapkan.`);
+    } catch (error) {
+      setEmailError(error instanceof Error ? error.message : "Filter gagal diterapkan.");
+    } finally {
+      setFilterRendering(false);
     }
   }
   async function sendOptionalEmail() {
@@ -15218,7 +15237,7 @@ function App() {
         );
       }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "action-row compact-actions", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "filter-row", children: filters.map((item) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: `chip-button${filterId === item.id ? " active" : ""}`, onClick: () => setFilterId(item.id), children: item.label }, item.id)) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Filter dipilih setelah semua foto selesai agar hasilnya bisa dibandingkan langsung." }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "dual-actions compact-dual-actions", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", onClick: resetToWelcome, children: "Kembali" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: async () => {
@@ -15248,7 +15267,7 @@ function App() {
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Filter" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: filter.label })
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Dipilih setelah foto" })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Retake" }),
@@ -15344,7 +15363,21 @@ function App() {
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "review-panel", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "REVIEW" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "Cek hasil strip kamu." }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Kalau ada satu foto yang kurang pas, ulangi foto itu saja tanpa mengulang semuanya." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Pilih filter sambil melihat hasil strip, atau ulangi satu foto yang kurang pas." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "review-filter-block", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Filter hasil" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "filter-row", children: filters.map((item) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              className: `chip-button${filter.id === item.id ? " active" : ""}`,
+              disabled: filterRendering,
+              onClick: () => void applyFinalFilter(item.id),
+              children: item.label
+            },
+            item.id
+          )) }),
+          filterRendering && /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: "Merender strip dan GIF..." })
+        ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "shot-list", children: Array.from({ length: template.captureCount }, (_, index) => {
           const shot = shots.find((item) => item.shotIndex === index);
           const remainingRetake = Math.max(0, settings.retakeLimitPerPhoto - (shot?.attemptsUsed ?? 0));
@@ -15369,7 +15402,7 @@ function App() {
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Lanjutkan untuk upload dan membuat QR hasil." })
           ] }),
           emailError && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "error-text", children: emailError }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button full", onClick: () => void finishReview(), children: "Upload hasil" })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button full", disabled: filterRendering, onClick: () => void finishReview(), children: "Upload hasil" })
         ] })
       ] })
     ] }),
@@ -15380,7 +15413,10 @@ function App() {
       /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Kami sedang mengunggah hasil dan menyiapkan link download." })
     ] }),
     step === "result" && session && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "result-layout screen-card", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "result-board narrow", children: session.finalStripDataUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx(FinalStripImage, { dataUrl: session.finalStripDataUrl }) : /* @__PURE__ */ jsxRuntimeExports.jsx(StripShowcase, { template, shots, filterCss: filter.cssFilter }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "result-board narrow", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "result-media-stack", children: [
+        session.finalStripDataUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx(FinalStripImage, { dataUrl: session.finalStripDataUrl }) : /* @__PURE__ */ jsxRuntimeExports.jsx(StripShowcase, { template, shots, filterCss: filter.cssFilter }),
+        session.finalGifDataUrl && /* @__PURE__ */ jsxRuntimeExports.jsx("img", { className: "result-gif-preview", src: session.finalGifDataUrl, alt: "GIF animasi enam foto photobooth" })
+      ] }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "qr-panel", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "QR SIAP" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "Scan untuk ambil fotomu." }),

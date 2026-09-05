@@ -183,6 +183,20 @@ export class GoogleDriveService {
       });
     }
 
+    if (input.session.finalGifPath) {
+      await drive.files.create({
+        requestBody: {
+          name: "slideshow.gif",
+          parents: [folderId]
+        },
+        media: {
+          mimeType: "image/gif",
+          body: createReadStream(input.session.finalGifPath)
+        },
+        fields: "id"
+      });
+    }
+
     for (const shot of input.session.shots) {
       if (!shot.filePath) continue;
       await drive.files.create({

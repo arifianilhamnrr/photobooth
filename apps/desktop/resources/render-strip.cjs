@@ -65,4 +65,35 @@ async function renderStrip({ template, shots, filterId, overlayPath, outputPath 
     .toFile(outputPath);
 }
 
-module.exports = { renderStrip };
+async function renderGif({ shots, filterId, outputPath }) {
+  const frameWidth = 960;
+  const frameHeight = 540;
+  const selectedShots = [...shots].sort((a, b) => a.shotIndex - b.shotIndex).filter((shot) => shot.filePath);
+  if (!selectedShots.length) throw new Error('GIF requires at least one photo');
+
+  const frameBuffers = [];
+  for (const shot of selectedShots) {
+    let image = sharp(shot.filePath).rotate().resize(frameWidth, frameHeight, {
+      fit: 'cover',
+      position: 'centre'
+    });
+    if (filterId === 'mono') image = image.grayscale().linear(1.08, 0);
+    if (filterId === 'warm') image = image.modulate({ saturation: 1.15, brightness: 1.02 }).tint('#f2c7a5');
+    if (filterId === 'cool') image = image.modulate({ saturation: 0.92, brightness: 1.01 }).tint('#aec8ff');
+    if (filterId === 'contrast') image = image.linear(1.16, -(128 * 1.16) + 128).modulate({ saturation: 1.1, brightness: 0.98 });
+    frameBuffers.push(await image.removeAlpha().raw().toBuffer());
+  }
+
+  await sharp(Buffer.concat(frameBuffers), {
+    raw: {
+      width: frameWidth,
+      height: frameHeight * frameBuffers.length,
+      channels: 3,
+      pageHeight: frameHeight
+    }
+  })
+    .gif({ loop: 0, delay: frameBuffers.map(() => 800), colours: 256, effort: 7 })
+    .toFile(outputPath);
+}
+
+module.exports = { renderStrip, renderGif };

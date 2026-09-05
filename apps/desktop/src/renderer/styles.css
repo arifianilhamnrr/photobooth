@@ -640,7 +640,34 @@ button {
 
 .shot-list {
   margin: 16px 0;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.review-filter-block {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 11px 12px;
+  border: 1px solid #34383c;
+  border-radius: 14px;
+  background: #111315;
+}
+
+.review-filter-block > span {
+  color: #9ea5a9;
+  font-size: 13px;
+}
+
+.review-filter-block .chip-button {
+  min-height: 40px;
+  padding-inline: 14px;
+  font-size: 13px;
+}
+
+.review-filter-block small {
+  color: #d6b7a7;
+  font-size: 12px;
 }
 
 .camera-status-card,
@@ -685,14 +712,19 @@ button {
 
 .shot-card {
   display: grid;
-  grid-template-columns: 112px 1fr auto;
+  grid-template-columns: 72px minmax(0, 1fr);
   align-items: center;
-  gap: 14px;
-  padding: 12px;
+  gap: 10px;
+  padding: 8px;
+}
+
+.shot-card .secondary-button {
+  grid-column: 1 / -1;
+  min-height: 36px;
 }
 
 .shot-thumb {
-  height: 76px;
+  height: 58px;
   border-radius: 14px;
   display: grid;
   place-items: center;
@@ -719,6 +751,26 @@ button {
   display: grid;
   place-items: center;
   padding: 18px;
+}
+
+.result-media-stack {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.result-gif-preview {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: min(38%, 220px);
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border: 4px solid #181a1c;
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
 }
 
 .final-strip-image {

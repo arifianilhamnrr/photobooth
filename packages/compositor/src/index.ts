@@ -73,3 +73,31 @@ export async function renderStrip(input: RenderStripInput): Promise<void> {
     .jpeg({ quality: 96, chromaSubsampling: "4:4:4", mozjpeg: true })
     .toFile(input.outputPath);
 }
+
+export async function renderGif(input: Omit<RenderStripInput, "template" | "overlayPath">): Promise<void> {
+  const frameWidth = 960;
+  const frameHeight = 540;
+  const selectedShots = [...input.shots].sort((left, right) => left.shotIndex - right.shotIndex).filter((shot) => shot.filePath);
+  if (!selectedShots.length) throw new Error("GIF requires at least one photo");
+
+  const frameBuffers: Buffer[] = [];
+  for (const shot of selectedShots) {
+    let image = sharp(shot.filePath!).rotate().resize(frameWidth, frameHeight, { fit: "cover", position: "centre" });
+    if (input.filterId === "mono") image = image.grayscale().linear(1.08, 0);
+    if (input.filterId === "warm") image = image.modulate({ saturation: 1.15, brightness: 1.02 }).tint("#f2c7a5");
+    if (input.filterId === "cool") image = image.modulate({ saturation: 0.92, brightness: 1.01 }).tint("#aec8ff");
+    if (input.filterId === "contrast") image = image.linear(1.16, -(128 * 1.16) + 128).modulate({ saturation: 1.1, brightness: 0.98 });
+    frameBuffers.push(await image.removeAlpha().raw().toBuffer());
+  }
+
+  await sharp(Buffer.concat(frameBuffers), {
+    raw: {
+      width: frameWidth,
+      height: frameHeight * frameBuffers.length,
+      channels: 3,
+      pageHeight: frameHeight
+    }
+  })
+    .gif({ loop: 0, delay: frameBuffers.map(() => 800), colours: 256, effort: 7 })
+    .toFile(input.outputPath);
+}

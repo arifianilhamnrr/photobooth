@@ -86,6 +86,11 @@ interface UpdateSessionConfigInput {
   filterId: FilterId;
 }
 
+interface ApplySessionFilterInput {
+  sessionId: string;
+  filterId: FilterId;
+}
+
 interface SelectCameraSourceInput {
   sourceId: string;
 }
@@ -146,13 +151,21 @@ async function renderFinalStripForSession(session: StoredSession): Promise<Store
     : join(app.getAppPath(), "src", "renderer", "assets", "frames", template.overlayAsset);
   const { sessionDir, outputDir } = await ensureSessionDirectories(sessionsBaseDir, session.id);
   const outputPath = join(outputDir, "strip.jpg");
-  const renderer = (await import(stripRendererPath)) as { renderStrip: (input: {
+  const gifPath = join(outputDir, "slideshow.gif");
+  const renderer = (await import(stripRendererPath)) as {
+    renderStrip: (input: {
     template: ReturnType<typeof getTemplate>;
     shots: StoredShot[];
     filterId: FilterId;
     overlayPath: string;
     outputPath: string;
-  }) => Promise<void> };
+  }) => Promise<void>;
+    renderGif: (input: {
+      shots: StoredShot[];
+      filterId: FilterId;
+      outputPath: string;
+    }) => Promise<void>;
+  };
   await renderer.renderStrip({
     template,
     shots: session.shots,
@@ -160,10 +173,13 @@ async function renderFinalStripForSession(session: StoredSession): Promise<Store
     overlayPath,
     outputPath
   });
-  const finalBytes = await readFile(outputPath);
+  await renderer.renderGif({ shots: session.shots, filterId: session.filterId, outputPath: gifPath });
+  const [finalBytes, gifBytes] = await Promise.all([readFile(outputPath), readFile(gifPath)]);
   return updateSession(session, {
     finalStripPath: outputPath,
     finalStripDataUrl: `data:image/jpeg;base64,${finalBytes.toString("base64")}`,
+    finalGifPath: gifPath,
+    finalGifDataUrl: `data:image/gif;base64,${gifBytes.toString("base64")}`,
     sessionDir
   });
 }
@@ -351,6 +367,12 @@ app.whenReady().then(() => {
       filterId: input.filterId
     });
     return saveSession(nextSession);
+  });
+  ipcMain.handle("session:apply-filter", async (_event, input: ApplySessionFilterInput) => {
+    const session = await getSession(input.sessionId);
+    const filtered = updateSession(session, { filterId: input.filterId });
+    const rendered = await renderFinalStripForSession(filtered);
+    return saveSession(rendered);
   });
   ipcMain.handle("queue:list", async (): Promise<QueueItem[]> => {
     const store = readSnapshotFromDatabase(database);

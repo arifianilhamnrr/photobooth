@@ -16,6 +16,7 @@ app.post("/api/sessions", async (c) => {
     eventName: string;
     recipientEmail?: string;
     stripBase64: string;
+    gifBase64?: string;
     originals: Array<{ name: string; base64: string }>;
   }>();
 
@@ -28,6 +29,14 @@ app.post("/api/sessions", async (c) => {
       contentType: "image/jpeg"
     }
   });
+
+  if (body.gifBase64) {
+    await c.env.PHOTOBOOTH_BUCKET.put(`${folderPrefix}/slideshow.gif`, Uint8Array.from(atob(body.gifBase64), (char) => char.charCodeAt(0)), {
+      httpMetadata: {
+        contentType: "image/gif"
+      }
+    });
+  }
 
   for (const original of body.originals) {
     await c.env.PHOTOBOOTH_BUCKET.put(`${folderPrefix}/${original.name}`, Uint8Array.from(atob(original.base64), (char) => char.charCodeAt(0)), {
@@ -52,7 +61,7 @@ app.post("/api/sessions", async (c) => {
       publicUrl,
       body.originals.length,
       "published",
-      JSON.stringify({ originals: body.originals.map((item) => item.name), email: { status: "pending_desktop_delivery" } })
+      JSON.stringify({ originals: body.originals.map((item) => item.name), gif: Boolean(body.gifBase64), email: { status: "pending_desktop_delivery" } })
     )
     .run();
 
@@ -83,7 +92,9 @@ app.get("/s/:sessionId", async (c) => {
   if (!session) return c.notFound();
 
   const stripObject = await c.env.PHOTOBOOTH_BUCKET.get(session.strip_key);
+  const gifObject = await c.env.PHOTOBOOTH_BUCKET.get(`sessions/${session.id}/slideshow.gif`);
   const imageUrl = stripObject ? `${c.env.PUBLIC_BASE_URL}/assets/${session.id}/strip.jpg` : "";
+  const gifUrl = gifObject ? `${c.env.PUBLIC_BASE_URL}/assets/${session.id}/slideshow.gif` : "";
 
   return c.html(`<!doctype html>
   <html lang="id">
@@ -95,9 +106,12 @@ app.get("/s/:sessionId", async (c) => {
         body { margin: 0; font-family: Arial, sans-serif; background: #111315; color: #f2f1ed; display: grid; place-items: center; min-height: 100vh; }
         main { width: min(92vw, 560px); text-align: center; }
         img { width: 100%; border-radius: 24px; box-shadow: 0 24px 80px rgba(0,0,0,.35); }
+        .gif { margin-top: 28px; aspect-ratio: 16/9; object-fit: cover; }
+        .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 20px 0 8px; }
         p { color: #b2b4b3; line-height: 1.5; }
         a { color: #ff7048; }
-        .download { display: inline-block; margin: 20px 0 8px; padding: 14px 20px; border-radius: 12px; background: #ff7048; color: #15110f; text-decoration: none; font-weight: 700; }
+        .download { display: inline-block; padding: 14px 20px; border-radius: 12px; background: #ff7048; color: #15110f; text-decoration: none; font-weight: 700; }
+        .download.secondary { background: #2b2f33; color: #f2f1ed; }
       </style>
     </head>
     <body>
@@ -105,7 +119,11 @@ app.get("/s/:sessionId", async (c) => {
         <h1>Hasil photobooth kamu siap</h1>
         <p>${session.event_name} · ${session.id}</p>
         ${imageUrl ? `<img src="${imageUrl}" alt="Hasil strip photobooth" />` : "<p>Strip belum tersedia.</p>"}
-        ${imageUrl ? `<a class="download" href="${c.env.PUBLIC_BASE_URL}/download/${session.id}/strip.jpg">Download foto</a>` : ""}
+        ${gifUrl ? `<img class="gif" src="${gifUrl}" alt="GIF animasi enam foto photobooth" />` : ""}
+        <div class="actions">
+          ${imageUrl ? `<a class="download" href="${c.env.PUBLIC_BASE_URL}/download/${session.id}/strip.jpg">Download foto</a>` : ""}
+          ${gifUrl ? `<a class="download secondary" href="${c.env.PUBLIC_BASE_URL}/download/${session.id}/slideshow.gif">Download GIF</a>` : ""}
+        </div>
         ${session.recipient_email ? `<p>Link ini juga dikirim ke ${session.recipient_email}.</p>` : ""}
         <p>Gunakan tombol download untuk menyimpan hasil ke perangkatmu.</p>
       </main>
@@ -131,7 +149,9 @@ app.get("/download/:sessionId/:fileName", async (c) => {
   if (!object) return c.notFound();
   const headers = new Headers();
   object.writeHttpMetadata(headers);
-  headers.set("content-disposition", `attachment; filename="photobooth-${sessionId}.jpg"`);
+  const extension = fileName.endsWith(".gif") ? "gif" : "jpg";
+  const label = extension === "gif" ? "photobooth-gif" : "photobooth";
+  headers.set("content-disposition", `attachment; filename="${label}-${sessionId}.${extension}"`);
   headers.set("cache-control", "private, max-age=0");
   return new Response(object.body, { headers });
 });

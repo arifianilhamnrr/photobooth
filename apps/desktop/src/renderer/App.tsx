@@ -65,6 +65,7 @@ export default function App() {
   const [emailError, setEmailError] = useState("");
   const [emailSent, setEmailSent] = useState(false);
   const [emailSending, setEmailSending] = useState(false);
+  const [filterRendering, setFilterRendering] = useState(false);
   const [kioskEnabled, setKioskEnabled] = useState(true);
   const [editorTemplateId, setEditorTemplateId] = useState(templates[0].id);
   const [editorSlotIndex, setEditorSlotIndex] = useState(0);
@@ -290,8 +291,10 @@ export default function App() {
 
   async function startSession() {
     const defaultTemplateId = templates.find((item) => item.id === "frame-3")?.id ?? templates[0].id;
+    const defaultFilterId: FilterId = "original";
     setTemplateId(defaultTemplateId);
-    const nextSession = await window.photobooth.sessions.create({ templateId: defaultTemplateId, filterId });
+    setFilterId(defaultFilterId);
+    const nextSession = await window.photobooth.sessions.create({ templateId: defaultTemplateId, filterId: defaultFilterId });
     setSession(nextSession);
     updateSessionCollection(nextSession);
     setCaptureIndex(0);
@@ -395,6 +398,23 @@ export default function App() {
       setEmailError(error instanceof Error ? error.message : "Upload gagal. Coba lagi.");
       setStep("review");
       setQueueStatus("Upload belum berhasil. Foto tetap aman di laptop.");
+    }
+  }
+
+  async function applyFinalFilter(nextFilterId: FilterId) {
+    if (!session || nextFilterId === session.filterId || filterRendering) return;
+    setFilterRendering(true);
+    setQueueStatus("Menerapkan filter ke strip dan GIF.");
+    try {
+      const updated = await window.photobooth.sessions.applyFilter({ sessionId: session.id, filterId: nextFilterId });
+      setFilterId(nextFilterId);
+      setSession(updated);
+      updateSessionCollection(updated);
+      setQueueStatus(`${filters.find((item) => item.id === nextFilterId)?.label ?? "Filter"} diterapkan.`);
+    } catch (error) {
+      setEmailError(error instanceof Error ? error.message : "Filter gagal diterapkan.");
+    } finally {
+      setFilterRendering(false);
     }
   }
 
@@ -606,13 +626,7 @@ export default function App() {
             })}
           </div>
           <div className="action-row compact-actions">
-            <div className="filter-row">
-              {filters.map((item) => (
-                <button key={item.id} className={`chip-button${filterId === item.id ? " active" : ""}`} onClick={() => setFilterId(item.id)}>
-                  {item.label}
-                </button>
-              ))}
-            </div>
+            <p className="body small">Filter dipilih setelah semua foto selesai agar hasilnya bisa dibandingkan langsung.</p>
             <div className="dual-actions compact-dual-actions">
               <button className="secondary-button" onClick={resetToWelcome}>Kembali</button>
               <button className="primary-button" onClick={async () => {
@@ -638,7 +652,7 @@ export default function App() {
             <p className="body small">Frame default memakai {template.captureCount} foto. Kalau kamera belum siap, kamu tetap bisa kembali dan ganti source kamera dari operator.</p>
             <div className="detail-list">
               <div><span>Template</span><strong>{template.name}</strong></div>
-              <div><span>Filter</span><strong>{filter.label}</strong></div>
+              <div><span>Filter</span><strong>Dipilih setelah foto</strong></div>
               <div><span>Retake</span><strong>{settings.retakeLimitPerPhoto} kali per foto</strong></div>
             </div>
             <label className="camera-select-label" htmlFor="guest-camera-source">Pilih kamera</label>
@@ -738,7 +752,23 @@ export default function App() {
           <div className="review-panel">
             <p className="eyebrow">REVIEW</p>
             <h2>Cek hasil strip kamu.</h2>
-            <p className="body small">Kalau ada satu foto yang kurang pas, ulangi foto itu saja tanpa mengulang semuanya.</p>
+            <p className="body small">Pilih filter sambil melihat hasil strip, atau ulangi satu foto yang kurang pas.</p>
+            <div className="review-filter-block">
+              <span>Filter hasil</span>
+              <div className="filter-row">
+                {filters.map((item) => (
+                  <button
+                    key={item.id}
+                    className={`chip-button${filter.id === item.id ? " active" : ""}`}
+                    disabled={filterRendering}
+                    onClick={() => void applyFinalFilter(item.id)}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+              {filterRendering && <small>Merender strip dan GIF...</small>}
+            </div>
             <div className="shot-list">
               {Array.from({ length: template.captureCount }, (_, index) => {
                 const shot = shots.find((item) => item.shotIndex === index);
@@ -765,7 +795,7 @@ export default function App() {
                 <span>Lanjutkan untuk upload dan membuat QR hasil.</span>
               </div>
               {emailError && <p className="error-text">{emailError}</p>}
-              <button className="primary-button full" onClick={() => void finishReview()}>Upload hasil</button>
+              <button className="primary-button full" disabled={filterRendering} onClick={() => void finishReview()}>Upload hasil</button>
             </div>
           </div>
         </section>
@@ -783,7 +813,10 @@ export default function App() {
       {step === "result" && session && (
         <section className="result-layout screen-card">
           <div className="result-board narrow">
-            {session.finalStripDataUrl ? <FinalStripImage dataUrl={session.finalStripDataUrl} /> : <StripShowcase template={template} shots={shots} filterCss={filter.cssFilter} />}
+            <div className="result-media-stack">
+              {session.finalStripDataUrl ? <FinalStripImage dataUrl={session.finalStripDataUrl} /> : <StripShowcase template={template} shots={shots} filterCss={filter.cssFilter} />}
+              {session.finalGifDataUrl && <img className="result-gif-preview" src={session.finalGifDataUrl} alt="GIF animasi enam foto photobooth" />}
+            </div>
           </div>
           <div className="qr-panel">
             <p className="eyebrow">QR SIAP</p>

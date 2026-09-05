@@ -64,6 +64,8 @@ export interface StoredSession {
   driveUrl?: string;
   finalStripPath?: string;
   finalStripDataUrl?: string;
+  finalGifPath?: string;
+  finalGifDataUrl?: string;
   sessionDir?: string;
   shots: StoredShot[];
 }

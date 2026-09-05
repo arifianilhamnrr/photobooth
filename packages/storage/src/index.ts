@@ -94,6 +94,8 @@ export function openDatabase(filePath: string): DatabaseSync {
       drive_url TEXT,
       final_strip_path TEXT,
       final_strip_data_url TEXT,
+      final_gif_path TEXT,
+      final_gif_data_url TEXT,
       session_dir TEXT
     );
 
@@ -130,6 +132,12 @@ export function openDatabase(filePath: string): DatabaseSync {
   if (!sessionColumns.some((column) => column.name === "recipient_email")) {
     database.exec("ALTER TABLE sessions ADD COLUMN recipient_email TEXT");
   }
+  if (!sessionColumns.some((column) => column.name === "final_gif_path")) {
+    database.exec("ALTER TABLE sessions ADD COLUMN final_gif_path TEXT");
+  }
+  if (!sessionColumns.some((column) => column.name === "final_gif_data_url")) {
+    database.exec("ALTER TABLE sessions ADD COLUMN final_gif_data_url TEXT");
+  }
 
   return database;
 }
@@ -137,7 +145,7 @@ export function openDatabase(filePath: string): DatabaseSync {
 export function readSnapshotFromDatabase(database: DatabaseSync): PersistedStore {
   const settingsRow = database.prepare("SELECT settings_json FROM app_settings WHERE id = 1").get() as { settings_json: string };
   const sessionRows = database.prepare(`
-    SELECT id, template_id, filter_id, status, created_at, updated_at, recipient_email, drive_url, final_strip_path, final_strip_data_url, session_dir
+    SELECT id, template_id, filter_id, status, created_at, updated_at, recipient_email, drive_url, final_strip_path, final_strip_data_url, final_gif_path, final_gif_data_url, session_dir
     FROM sessions
     ORDER BY created_at DESC
   `).all() as Array<{
@@ -151,6 +159,8 @@ export function readSnapshotFromDatabase(database: DatabaseSync): PersistedStore
     drive_url: string | null;
     final_strip_path: string | null;
     final_strip_data_url: string | null;
+    final_gif_path: string | null;
+    final_gif_data_url: string | null;
     session_dir: string | null;
   }>;
 
@@ -179,6 +189,8 @@ export function readSnapshotFromDatabase(database: DatabaseSync): PersistedStore
     driveUrl: row.drive_url ?? undefined,
     finalStripPath: row.final_strip_path ?? undefined,
     finalStripDataUrl: row.final_strip_data_url ?? undefined,
+    finalGifPath: row.final_gif_path ?? undefined,
+    finalGifDataUrl: row.final_gif_data_url ?? undefined,
     sessionDir: row.session_dir ?? undefined,
     shots: shotRows
       .filter((shot) => shot.session_id === row.id)
@@ -207,8 +219,8 @@ export function writeSettingsToDatabase(database: DatabaseSync, settings: Persis
 
 export function upsertSessionInDatabase(database: DatabaseSync, session: StoredSession): StoredSession {
   const saveSession = database.prepare(`
-    INSERT INTO sessions (id, template_id, filter_id, status, created_at, updated_at, recipient_email, drive_url, final_strip_path, final_strip_data_url, session_dir)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO sessions (id, template_id, filter_id, status, created_at, updated_at, recipient_email, drive_url, final_strip_path, final_strip_data_url, final_gif_path, final_gif_data_url, session_dir)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       template_id = excluded.template_id,
       filter_id = excluded.filter_id,
@@ -219,6 +231,8 @@ export function upsertSessionInDatabase(database: DatabaseSync, session: StoredS
       drive_url = excluded.drive_url,
       final_strip_path = excluded.final_strip_path,
       final_strip_data_url = excluded.final_strip_data_url,
+      final_gif_path = excluded.final_gif_path,
+      final_gif_data_url = excluded.final_gif_data_url,
       session_dir = excluded.session_dir
   `);
   const saveShot = database.prepare(`
@@ -248,6 +262,8 @@ export function upsertSessionInDatabase(database: DatabaseSync, session: StoredS
       session.driveUrl ?? null,
       session.finalStripPath ?? null,
       session.finalStripDataUrl ?? null,
+      session.finalGifPath ?? null,
+      session.finalGifDataUrl ?? null,
       session.sessionDir ?? null
     );
 
