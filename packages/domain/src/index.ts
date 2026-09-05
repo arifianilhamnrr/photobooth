@@ -127,7 +127,7 @@ export const defaultSettings: BoothSettings = {
   autoResetSeconds: 60,
   driveRootFolderName: "Photobooth Sessions",
   slotOverrides: {},
-  frameRevision: 2
+  frameRevision: 3
 };
 
 export const templates: PhotoTemplate[] = [
@@ -204,16 +204,16 @@ export const templates: PhotoTemplate[] = [
     name: "Frame Bloom",
     description: "Pilihan lebih dekoratif dengan warna yang lebih manis.",
     captureCount: 6,
-    width: 3764,
+    width: 3765,
     height: 5610,
     overlayAsset: "frame-5.png",
     slots: [
-      { id: "slot-1", photoIndex: 0, x: 310, y: 980, width: 1260, height: 860, rotation: 0, cornerRadius: 50 },
-      { id: "slot-2", photoIndex: 1, x: 2192, y: 1250, width: 1260, height: 860, rotation: 0, cornerRadius: 50 },
-      { id: "slot-3", photoIndex: 2, x: 310, y: 2070, width: 1260, height: 860, rotation: 0, cornerRadius: 50 },
-      { id: "slot-4", photoIndex: 3, x: 2192, y: 2340, width: 1260, height: 860, rotation: 0, cornerRadius: 50 },
-      { id: "slot-5", photoIndex: 4, x: 310, y: 3160, width: 1260, height: 860, rotation: 0, cornerRadius: 50 },
-      { id: "slot-6", photoIndex: 5, x: 2192, y: 3430, width: 1260, height: 860, rotation: 0, cornerRadius: 50 }
+      { id: "slot-1", photoIndex: 0, x: 310, y: 980, width: 1258, height: 860, rotation: 0, cornerRadius: 50 },
+      { id: "slot-2", photoIndex: 1, x: 2196, y: 1250, width: 1258, height: 860, rotation: 0, cornerRadius: 50 },
+      { id: "slot-3", photoIndex: 2, x: 310, y: 2070, width: 1258, height: 860, rotation: 0, cornerRadius: 50 },
+      { id: "slot-4", photoIndex: 3, x: 2196, y: 2340, width: 1258, height: 860, rotation: 0, cornerRadius: 50 },
+      { id: "slot-5", photoIndex: 4, x: 310, y: 3160, width: 1258, height: 860, rotation: 0, cornerRadius: 50 },
+      { id: "slot-6", photoIndex: 5, x: 2196, y: 3430, width: 1258, height: 860, rotation: 0, cornerRadius: 50 }
     ]
   }
 ];
