@@ -68,6 +68,9 @@ export default function App() {
   const [editorSlotIndex, setEditorSlotIndex] = useState(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const captureCycleRef = useRef(0);
+  const lastCountdownSoundRef = useRef("");
 
   const template = useMemo<PhotoTemplate>(() => {
     const base = getTemplate(session?.templateId ?? templateId);
@@ -111,6 +114,12 @@ export default function App() {
     const usesNativeCamera = selectedCameraSourceId.startsWith("gphoto:");
     if (!usesNativeCamera && !cameraReady) return;
 
+    const soundKey = `${captureCycleRef.current}:${replaceIndex ?? captureIndex}:${countdown}`;
+    if (lastCountdownSoundRef.current !== soundKey) {
+      lastCountdownSoundRef.current = soundKey;
+      playCountdownSound(countdown);
+    }
+
     if (countdown > 1) {
       const timer = window.setTimeout(() => setCountdown((value) => value - 1), CAPTURE_INTERVAL_MS);
       return () => clearTimeout(timer);
@@ -127,6 +136,7 @@ export default function App() {
         return;
       }
 
+      playShutterSound();
       setShutterFlash(true);
       window.setTimeout(() => setShutterFlash(false), 140);
       const countAsRetake = replaceIndex !== null && !retakeCountRecorded;
@@ -300,6 +310,8 @@ export default function App() {
       setQueueStatus("Kamera belum siap. Cek koneksi kamera atau kembali ke layar sebelumnya.");
       return;
     }
+    unlockAudio();
+    captureCycleRef.current += 1;
     setCaptureIndex(0);
     setCountdown(settings.countdownSeconds);
     setQueueStatus(`Ambil ${template.captureCount} foto untuk template ${template.name}.`);
@@ -307,6 +319,8 @@ export default function App() {
   }
 
   function requestRetake(shotIndex: number) {
+    unlockAudio();
+    captureCycleRef.current += 1;
     setReplaceIndex(shotIndex);
     setRetakeCountRecorded(false);
     setCountdown(settings.countdownSeconds);
@@ -333,6 +347,8 @@ export default function App() {
     }
 
     const nextIndex = lastCapturedIndex + 1;
+    unlockAudio();
+    captureCycleRef.current += 1;
     setCaptureIndex(nextIndex);
     setLastCapturedIndex(null);
     setCountdown(settings.countdownSeconds);
@@ -342,6 +358,8 @@ export default function App() {
 
   function rejectCapturedShot() {
     const targetIndex = lastCapturedIndex ?? replaceIndex ?? captureIndex;
+    unlockAudio();
+    captureCycleRef.current += 1;
     setCaptureIndex(targetIndex);
     setLastCapturedIndex(null);
     setCountdown(settings.countdownSeconds);
@@ -428,6 +446,72 @@ export default function App() {
   async function toggleKiosk(value: boolean) {
     const result = await window.photobooth.system.setKiosk(value);
     setKioskEnabled(result.kiosk);
+  }
+
+  function unlockAudio() {
+    const AudioContextConstructor = window.AudioContext;
+    const context = audioContextRef.current ?? new AudioContextConstructor();
+    audioContextRef.current = context;
+    if (context.state === "suspended") void context.resume();
+  }
+
+  function playCountdownSound(value: number) {
+    unlockAudio();
+    const context = audioContextRef.current;
+    if (!context) return;
+    const now = context.currentTime;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(value === 1 ? 1040 : 760, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(value === 1 ? 0.2 : 0.14, now + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + (value === 1 ? 0.18 : 0.12));
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.2);
+  }
+
+  function playShutterSound() {
+    unlockAudio();
+    const context = audioContextRef.current;
+    if (!context) return;
+    const now = context.currentTime;
+    const sampleCount = Math.floor(context.sampleRate * 0.16);
+    const buffer = context.createBuffer(1, sampleCount, context.sampleRate);
+    const samples = buffer.getChannelData(0);
+    for (let index = 0; index < sampleCount; index += 1) {
+      const envelope = Math.exp((-index / sampleCount) * 10);
+      samples[index] = (Math.random() * 2 - 1) * envelope;
+    }
+
+    const source = context.createBufferSource();
+    const filter = context.createBiquadFilter();
+    const gain = context.createGain();
+    source.buffer = buffer;
+    filter.type = "bandpass";
+    filter.frequency.setValueAtTime(1500, now);
+    filter.Q.setValueAtTime(0.8, now);
+    gain.gain.setValueAtTime(0.34, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(context.destination);
+    source.start(now);
+    source.stop(now + 0.17);
+
+    const click = context.createOscillator();
+    const clickGain = context.createGain();
+    click.type = "square";
+    click.frequency.setValueAtTime(180, now);
+    click.frequency.exponentialRampToValueAtTime(70, now + 0.06);
+    clickGain.gain.setValueAtTime(0.16, now);
+    clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
+    click.connect(clickGain);
+    clickGain.connect(context.destination);
+    click.start(now);
+    click.stop(now + 0.08);
   }
 
   async function updateEditorSlot(changes: Partial<TemplateSlot>) {

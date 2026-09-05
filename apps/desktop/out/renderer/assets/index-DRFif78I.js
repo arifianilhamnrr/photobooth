@@ -14736,6 +14736,9 @@ function App() {
   const [editorSlotIndex, setEditorSlotIndex] = reactExports.useState(0);
   const videoRef = reactExports.useRef(null);
   const streamRef = reactExports.useRef(null);
+  const audioContextRef = reactExports.useRef(null);
+  const captureCycleRef = reactExports.useRef(0);
+  const lastCountdownSoundRef = reactExports.useRef("");
   const template = reactExports.useMemo(() => {
     const base = getTemplate(session?.templateId ?? templateId);
     return { ...base, slots: settings.slotOverrides[base.id] ?? base.slots };
@@ -14772,6 +14775,11 @@ function App() {
     if (step !== "capture" || !session) return;
     const usesNativeCamera = selectedCameraSourceId.startsWith("gphoto:");
     if (!usesNativeCamera && !cameraReady) return;
+    const soundKey = `${captureCycleRef.current}:${replaceIndex ?? captureIndex}:${countdown}`;
+    if (lastCountdownSoundRef.current !== soundKey) {
+      lastCountdownSoundRef.current = soundKey;
+      playCountdownSound(countdown);
+    }
     if (countdown > 1) {
       const timer2 = window.setTimeout(() => setCountdown((value) => value - 1), CAPTURE_INTERVAL_MS);
       return () => clearTimeout(timer2);
@@ -14786,6 +14794,7 @@ function App() {
         setCountdown(settings.countdownSeconds);
         return;
       }
+      playShutterSound();
       setShutterFlash(true);
       window.setTimeout(() => setShutterFlash(false), 140);
       const countAsRetake = replaceIndex !== null && !retakeCountRecorded;
@@ -14941,12 +14950,16 @@ function App() {
       setQueueStatus("Kamera belum siap. Cek koneksi kamera atau kembali ke layar sebelumnya.");
       return;
     }
+    unlockAudio();
+    captureCycleRef.current += 1;
     setCaptureIndex(0);
     setCountdown(settings.countdownSeconds);
     setQueueStatus(`Ambil ${template.captureCount} foto untuk template ${template.name}.`);
     setStep("capture");
   }
   function requestRetake(shotIndex) {
+    unlockAudio();
+    captureCycleRef.current += 1;
     setReplaceIndex(shotIndex);
     setRetakeCountRecorded(false);
     setCountdown(settings.countdownSeconds);
@@ -14970,6 +14983,8 @@ function App() {
       return;
     }
     const nextIndex = lastCapturedIndex + 1;
+    unlockAudio();
+    captureCycleRef.current += 1;
     setCaptureIndex(nextIndex);
     setLastCapturedIndex(null);
     setCountdown(settings.countdownSeconds);
@@ -14978,6 +14993,8 @@ function App() {
   }
   function rejectCapturedShot() {
     const targetIndex = lastCapturedIndex ?? replaceIndex ?? captureIndex;
+    unlockAudio();
+    captureCycleRef.current += 1;
     setCaptureIndex(targetIndex);
     setLastCapturedIndex(null);
     setCountdown(settings.countdownSeconds);
@@ -15054,6 +15071,67 @@ function App() {
   async function toggleKiosk(value) {
     const result = await window.photobooth.system.setKiosk(value);
     setKioskEnabled(result.kiosk);
+  }
+  function unlockAudio() {
+    const AudioContextConstructor = window.AudioContext;
+    const context = audioContextRef.current ?? new AudioContextConstructor();
+    audioContextRef.current = context;
+    if (context.state === "suspended") void context.resume();
+  }
+  function playCountdownSound(value) {
+    unlockAudio();
+    const context = audioContextRef.current;
+    if (!context) return;
+    const now = context.currentTime;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(value === 1 ? 1040 : 760, now);
+    gain.gain.setValueAtTime(1e-4, now);
+    gain.gain.exponentialRampToValueAtTime(value === 1 ? 0.2 : 0.14, now + 8e-3);
+    gain.gain.exponentialRampToValueAtTime(1e-4, now + (value === 1 ? 0.18 : 0.12));
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.2);
+  }
+  function playShutterSound() {
+    unlockAudio();
+    const context = audioContextRef.current;
+    if (!context) return;
+    const now = context.currentTime;
+    const sampleCount = Math.floor(context.sampleRate * 0.16);
+    const buffer = context.createBuffer(1, sampleCount, context.sampleRate);
+    const samples = buffer.getChannelData(0);
+    for (let index = 0; index < sampleCount; index += 1) {
+      const envelope = Math.exp(-index / sampleCount * 10);
+      samples[index] = (Math.random() * 2 - 1) * envelope;
+    }
+    const source = context.createBufferSource();
+    const filter2 = context.createBiquadFilter();
+    const gain = context.createGain();
+    source.buffer = buffer;
+    filter2.type = "bandpass";
+    filter2.frequency.setValueAtTime(1500, now);
+    filter2.Q.setValueAtTime(0.8, now);
+    gain.gain.setValueAtTime(0.34, now);
+    gain.gain.exponentialRampToValueAtTime(1e-4, now + 0.16);
+    source.connect(filter2);
+    filter2.connect(gain);
+    gain.connect(context.destination);
+    source.start(now);
+    source.stop(now + 0.17);
+    const click = context.createOscillator();
+    const clickGain = context.createGain();
+    click.type = "square";
+    click.frequency.setValueAtTime(180, now);
+    click.frequency.exponentialRampToValueAtTime(70, now + 0.06);
+    clickGain.gain.setValueAtTime(0.16, now);
+    clickGain.gain.exponentialRampToValueAtTime(1e-4, now + 0.07);
+    click.connect(clickGain);
+    clickGain.connect(context.destination);
+    click.start(now);
+    click.stop(now + 0.08);
   }
   async function updateEditorSlot(changes) {
     const slots = editorTemplate.slots.map((slot, index) => index === editorSlotIndex ? { ...slot, ...changes } : slot);
