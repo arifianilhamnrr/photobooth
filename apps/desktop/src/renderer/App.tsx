@@ -338,6 +338,10 @@ export default function App() {
       });
       streamRef.current = stream;
       const [track] = stream.getVideoTracks();
+      const capabilities = track?.getCapabilities() as MediaTrackCapabilities & { focusMode?: string[] };
+      if (capabilities?.focusMode?.includes("continuous")) {
+        await track.applyConstraints({ advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet] }).catch(() => undefined);
+      }
       const activeDeviceId = track?.getSettings().deviceId;
       setCameraLabel(track?.label || "Kamera aktif");
       setCameraReady(true);

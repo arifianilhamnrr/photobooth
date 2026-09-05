@@ -182,7 +182,14 @@ async function captureFromGphoto(sourceId: string): Promise<string> {
     const tempDir = await mkdtemp(join(tmpdir(), "photobooth-canon-"));
     const outputPath = join(tempDir, "capture.jpg");
     try {
-      await runGphoto(["--port", camera.port, "--capture-image-and-download", "--filename", outputPath, "--force-overwrite"]);
+      const captureArgs = ["--port", camera.port, "--capture-image-and-download", "--filename", outputPath, "--force-overwrite"];
+      try {
+        await runGphoto(captureArgs);
+      } catch (error) {
+        await runGphoto(["--port", camera.port, "--set-config", "/main/actions/eosremoterelease=7"]).catch(() => undefined);
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        await runGphoto(captureArgs).catch(() => { throw error; });
+      }
       const bytes = await readFile(outputPath);
       return `data:image/jpeg;base64,${bytes.toString("base64")}`;
     } finally {
