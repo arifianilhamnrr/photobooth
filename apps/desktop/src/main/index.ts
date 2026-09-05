@@ -450,12 +450,15 @@ app.whenReady().then(() => {
     };
     const shots = [...session.shots.filter((item) => item.shotIndex !== input.shotIndex), nextShot].sort((left, right) => left.shotIndex - right.shotIndex);
     const captureCount = getTemplate(session.templateId).captureCount;
-    let nextSession = updateSession(session, {
+    const nextSession = updateSession(session, {
       status: nextStatusForShotCount(shots, captureCount),
       sessionDir,
+      finalStripPath: undefined,
+      finalStripDataUrl: undefined,
+      finalGifPath: undefined,
+      finalGifDataUrl: undefined,
       shots
     });
-    if (shots.length > 0) nextSession = await renderFinalStripForSession(nextSession);
     return saveSession(nextSession);
   });
   ipcMain.handle("session:publish", async (_event, input: PublishSessionInput) => {
