@@ -105,6 +105,9 @@ export default function App() {
 
   useEffect(() => {
     if (step !== "capture" || !session) return;
+    const usesNativeCamera = selectedCameraSourceId.startsWith("gphoto:");
+    if (!usesNativeCamera && !cameraReady) return;
+
     if (countdown > 1) {
       const timer = window.setTimeout(() => setCountdown((value) => value - 1), CAPTURE_INTERVAL_MS);
       return () => clearTimeout(timer);
@@ -155,7 +158,7 @@ export default function App() {
     }, CAPTURE_INTERVAL_MS);
 
     return () => clearTimeout(timer);
-  }, [captureIndex, countdown, replaceIndex, session, settings.countdownSeconds, step, template.captureCount]);
+  }, [cameraReady, captureIndex, countdown, replaceIndex, selectedCameraSourceId, session, settings.countdownSeconds, step, template.captureCount]);
 
   useEffect(() => {
     if (!cameraActive) {
@@ -165,7 +168,7 @@ export default function App() {
 
     void startCamera(selectedCameraSourceId);
     return stopCamera;
-  }, [cameraActive, selectedCameraSourceId]);
+  }, [cameraActive, selectedCameraSourceId, step]);
 
   useEffect(() => {
     if (step !== "result" || !session?.driveUrl) return;
@@ -265,7 +268,7 @@ export default function App() {
 
   function captureFrame(): string | null {
     const video = videoRef.current;
-    if (!video || !cameraReady || video.videoWidth === 0 || video.videoHeight === 0) return null;
+    if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || video.videoWidth === 0 || video.videoHeight === 0) return null;
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -537,8 +540,8 @@ export default function App() {
               label={replaceIndex === null ? `Foto ${captureIndex + 1} dari ${template.captureCount} · ${cameraLabel}` : `Ulangi foto ${replaceIndex + 1} · ${cameraLabel}`}
             />
             <div className="countdown-ring">
-              <span>{countdown}</span>
-              <small>{replaceIndex === null ? `Foto ${captureIndex + 1} dari ${template.captureCount}` : `Retake foto ${replaceIndex + 1}`}</small>
+              <span>{cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? countdown : "·"}</span>
+              <small>{cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? (replaceIndex === null ? `Foto ${captureIndex + 1} dari ${template.captureCount}` : `Retake foto ${replaceIndex + 1}`) : "Menunggu kamera"}</small>
             </div>
           </div>
           <div className="capture-rail">
@@ -547,7 +550,7 @@ export default function App() {
             <p className="body small">Shutter berlangsung otomatis. Tiap foto yang sudah aman langsung masuk ke strip dan tidak hilang saat pergantian pose.</p>
             <div className="capture-status-card">
               <strong>{replaceIndex === null ? `Pose ${captureIndex + 1} dari ${template.captureCount}` : `Retake foto ${replaceIndex + 1}`}</strong>
-              <span>{countdown > 1 ? `Bersiap, foto akan diambil dalam ${countdown} detik.` : "Jepret sekarang."}</span>
+              <span>{!cameraReady && !selectedCameraSourceId.startsWith("gphoto:") ? "Menghubungkan kembali stream kamera." : countdown > 1 ? `Bersiap, foto akan diambil dalam ${countdown} detik.` : "Jepret sekarang."}</span>
             </div>
             <ShotRail shots={shots} activeIndex={replaceIndex ?? captureIndex} />
             <button className="secondary-button full" onClick={() => setStep("ready")}>Kembali ke kamera</button>

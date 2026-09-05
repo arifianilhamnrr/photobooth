@@ -14767,6 +14767,8 @@ function App() {
   }, []);
   reactExports.useEffect(() => {
     if (step !== "capture" || !session) return;
+    const usesNativeCamera = selectedCameraSourceId.startsWith("gphoto:");
+    if (!usesNativeCamera && !cameraReady) return;
     if (countdown > 1) {
       const timer2 = window.setTimeout(() => setCountdown((value) => value - 1), CAPTURE_INTERVAL_MS);
       return () => clearTimeout(timer2);
@@ -14809,7 +14811,7 @@ function App() {
       });
     }, CAPTURE_INTERVAL_MS);
     return () => clearTimeout(timer);
-  }, [captureIndex, countdown, replaceIndex, session, settings.countdownSeconds, step, template.captureCount]);
+  }, [cameraReady, captureIndex, countdown, replaceIndex, selectedCameraSourceId, session, settings.countdownSeconds, step, template.captureCount]);
   reactExports.useEffect(() => {
     if (!cameraActive) {
       stopCamera();
@@ -14817,7 +14819,7 @@ function App() {
     }
     void startCamera(selectedCameraSourceId);
     return stopCamera;
-  }, [cameraActive, selectedCameraSourceId]);
+  }, [cameraActive, selectedCameraSourceId, step]);
   reactExports.useEffect(() => {
     if (step !== "result" || !session?.driveUrl) return;
     void QRCode.toDataURL(session.driveUrl, {
@@ -14907,7 +14909,7 @@ function App() {
   }
   function captureFrame() {
     const video = videoRef.current;
-    if (!video || !cameraReady || video.videoWidth === 0 || video.videoHeight === 0) return null;
+    if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || video.videoWidth === 0 || video.videoHeight === 0) return null;
     const canvas2 = document.createElement("canvas");
     canvas2.width = video.videoWidth;
     canvas2.height = video.videoHeight;
@@ -15164,8 +15166,8 @@ function App() {
           }
         ),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "countdown-ring", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: countdown }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: replaceIndex === null ? `Foto ${captureIndex + 1} dari ${template.captureCount}` : `Retake foto ${replaceIndex + 1}` })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? countdown : "·" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? replaceIndex === null ? `Foto ${captureIndex + 1} dari ${template.captureCount}` : `Retake foto ${replaceIndex + 1}` : "Menunggu kamera" })
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "capture-rail", children: [
@@ -15174,7 +15176,7 @@ function App() {
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Shutter berlangsung otomatis. Tiap foto yang sudah aman langsung masuk ke strip dan tidak hilang saat pergantian pose." }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "capture-status-card", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: replaceIndex === null ? `Pose ${captureIndex + 1} dari ${template.captureCount}` : `Retake foto ${replaceIndex + 1}` }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: countdown > 1 ? `Bersiap, foto akan diambil dalam ${countdown} detik.` : "Jepret sekarang." })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: !cameraReady && !selectedCameraSourceId.startsWith("gphoto:") ? "Menghubungkan kembali stream kamera." : countdown > 1 ? `Bersiap, foto akan diambil dalam ${countdown} detik.` : "Jepret sekarang." })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(ShotRail, { shots, activeIndex: replaceIndex ?? captureIndex }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button full", onClick: () => setStep("ready"), children: "Kembali ke kamera" })
