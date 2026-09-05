@@ -7,6 +7,15 @@ on:
         description: Existing release tag to upload assets to
         required: true
         default: v0.1.0
+      target:
+        description: Platform jobs to run
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - windows
+          - linux
   push:
     tags:
       - "v*"
@@ -17,6 +26,7 @@ permissions:
 jobs:
   windows:
     name: Windows NSIS
+    if: ${{ github.event_name == 'push' || inputs.target == 'all' || inputs.target == 'windows' }}
     runs-on: windows-latest
     env:
       NODE_OPTIONS: --max-old-space-size=6144
@@ -53,6 +63,7 @@ jobs:
 
   linux:
     name: Linux packages
+    if: ${{ github.event_name == 'push' || inputs.target == 'all' || inputs.target == 'linux' }}
     runs-on: ubuntu-24.04
     env:
       NODE_OPTIONS: --max-old-space-size=6144
