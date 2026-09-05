@@ -14837,32 +14837,44 @@ function App() {
       return;
     }
     let cancelled = false;
-    let timer;
-    const refresh = async () => {
-      if (cancelled) return;
+    let interval;
+    const start = async () => {
       try {
-        const preview = await window.photobooth.camera.capturePreview(selectedCameraSourceId);
+        const liveView = await window.photobooth.camera.startLiveView(selectedCameraSourceId);
         if (cancelled) return;
-        setNativePreviewUrl(preview.dataUrl);
-        setCameraLabel(preview.label);
-        setCameraReady(true);
-        setCameraError("");
-        setCameraStatusMessage("Live preview Canon aktif. Foto final tetap diambil pada resolusi penuh.");
+        setCameraLabel(liveView.label);
+        interval = window.setInterval(() => {
+          void window.photobooth.camera.getLiveViewFrame(selectedCameraSourceId).then((frame) => {
+            if (cancelled) return;
+            if (frame.dataUrl) {
+              setNativePreviewUrl(frame.dataUrl);
+              setCameraReady(true);
+              setCameraError("");
+              setCameraStatusMessage("Live preview Canon aktif. Foto final tetap diambil pada resolusi penuh.");
+            } else if (!nativePreviewUrl && frame.error) {
+              setCameraStatusMessage(frame.error);
+            }
+          });
+        }, 100);
       } catch (error) {
         if (cancelled) return;
         setCameraReady(false);
         setCameraError(error instanceof Error ? error.message : "Preview Canon gagal.");
         setCameraStatusMessage("Preview Canon belum tersedia. Cek koneksi kamera lalu pilih ulang source.");
-      } finally {
-        if (!cancelled) timer = window.setTimeout(refresh, 700);
       }
     };
-    void refresh();
+    void start();
     return () => {
       cancelled = true;
-      if (timer) window.clearTimeout(timer);
+      if (interval) window.clearInterval(interval);
+      void window.photobooth.camera.stopLiveView();
     };
   }, [cameraActive, selectedCameraSourceId, step]);
+  reactExports.useEffect(() => {
+    if (step === "capture" && countdown === 1 && selectedCameraSourceId.startsWith("gphoto:")) {
+      void window.photobooth.camera.stopLiveView();
+    }
+  }, [countdown, selectedCameraSourceId, step]);
   reactExports.useEffect(() => {
     if (step !== "result" || !session?.driveUrl) return;
     void QRCode.toDataURL(session.driveUrl, {

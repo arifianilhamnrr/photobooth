@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, nativeImage } from "electron";
-import { execFile } from "node:child_process";
+import { execFile, spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdir, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { tmpdir } from "node:os";
 import { BrevoEmailService, CloudflareUploadService, GoogleDriveService } from "@photobooth/drive";
@@ -42,6 +42,12 @@ const execFileAsync = promisify(execFile);
 let selectedCameraSourceId = "webcam:default";
 let database = openDatabase(databasePath);
 let gphotoQueue: Promise<void> = Promise.resolve();
+let gphotoLiveView: {
+  sourceId: string;
+  process: ChildProcessWithoutNullStreams;
+  latestFrame?: Buffer;
+  error?: string;
+} | null = null;
 const cloudflareService = new CloudflareUploadService(process.env.PHOTOBOOTH_CLOUD_URL ?? "https://photobooth.collaborationday2026.web.id");
 const brevoEmailService = new BrevoEmailService({
   apiKey: process.env.BREVO_API_KEY,
@@ -131,6 +137,11 @@ async function resolveGphotoCamera(sourceId: string): Promise<{ model: string; p
 
 async function listCameraSources(): Promise<CameraSource[]> {
   const sources: CameraSource[] = [{ id: "webcam:default", label: "Webcam browser" }];
+  if (gphotoLiveView) {
+    const model = decodeURIComponent(gphotoLiveView.sourceId.replace(/^gphoto:/, ""));
+    sources.push({ id: gphotoLiveView.sourceId, label: model });
+    return sources;
+  }
   try {
     const cameras = await withGphotoLock(detectGphotoCameras);
     for (const camera of cameras) {
@@ -144,6 +155,7 @@ async function listCameraSources(): Promise<CameraSource[]> {
 
 async function captureFromGphoto(sourceId: string): Promise<string> {
   return withGphotoLock(async () => {
+    await stopGphotoLiveView();
     const camera = await resolveGphotoCamera(sourceId);
     const tempDir = await mkdtemp(join(tmpdir(), "photobooth-canon-"));
     const outputPath = join(tempDir, "capture.jpg");
@@ -157,22 +169,67 @@ async function captureFromGphoto(sourceId: string): Promise<string> {
   });
 }
 
-async function capturePreviewFromGphoto(sourceId: string): Promise<{ dataUrl: string; label: string }> {
-  return withGphotoLock(async () => {
-    const camera = await resolveGphotoCamera(sourceId);
-    const tempDir = await mkdtemp(join(tmpdir(), "photobooth-canon-preview-"));
-    const requestedPath = join(tempDir, "preview.jpg");
-    try {
-      await runGphoto(["--port", camera.port, "--capture-preview", "--filename", requestedPath, "--force-overwrite"]);
-      const files = await readdir(tempDir);
-      const previewName = files.find((name) => /\.(jpe?g)$/i.test(name));
-      if (!previewName) throw new Error("Canon tidak menghasilkan preview.");
-      const bytes = await readFile(join(tempDir, previewName));
-      return { dataUrl: `data:image/jpeg;base64,${bytes.toString("base64")}`, label: camera.model };
-    } finally {
-      await rm(tempDir, { recursive: true, force: true });
+function extractJpegFrames(buffer: Buffer): { frames: Buffer[]; remaining: Buffer } {
+  const frames: Buffer[] = [];
+  let offset = 0;
+  while (offset < buffer.length) {
+    const start = buffer.indexOf(Buffer.from([0xff, 0xd8]), offset);
+    if (start < 0) return { frames, remaining: buffer.subarray(Math.max(0, buffer.length - 1)) };
+    const end = buffer.indexOf(Buffer.from([0xff, 0xd9]), start + 2);
+    if (end < 0) return { frames, remaining: buffer.subarray(start) };
+    frames.push(buffer.subarray(start, end + 2));
+    offset = end + 2;
+  }
+  return { frames, remaining: Buffer.alloc(0) };
+}
+
+async function startGphotoLiveView(sourceId: string): Promise<{ label: string }> {
+  if (gphotoLiveView?.sourceId === sourceId && !gphotoLiveView.process.killed) {
+    return { label: decodeURIComponent(sourceId.replace(/^gphoto:/, "")) };
+  }
+  await stopGphotoLiveView();
+  const camera = await withGphotoLock(() => resolveGphotoCamera(sourceId));
+  const child = spawn("gphoto2", ["--port", camera.port, "--capture-movie", "--stdout"]);
+  gphotoLiveView = { sourceId, process: child };
+  let pending: Buffer<ArrayBufferLike> = Buffer.alloc(0);
+  child.stdout.on("data", (chunk: Buffer) => {
+    pending = Buffer.concat([pending, Buffer.from(chunk)]);
+    const extracted = extractJpegFrames(pending);
+    pending = extracted.remaining;
+    const latest = extracted.frames.at(-1);
+    if (latest && gphotoLiveView?.process === child) gphotoLiveView.latestFrame = Buffer.from(latest);
+  });
+  child.stderr.on("data", (chunk: Buffer) => {
+    const message = chunk.toString("utf8").trim();
+    if (message && gphotoLiveView?.process === child) gphotoLiveView.error = message;
+  });
+  child.on("exit", (code) => {
+    if (gphotoLiveView?.process === child && code && code !== 0) {
+      gphotoLiveView.error ||= `Live view berhenti dengan kode ${code}`;
     }
   });
+  return { label: camera.model };
+}
+
+async function stopGphotoLiveView(): Promise<void> {
+  const liveView = gphotoLiveView;
+  if (!liveView) return;
+  gphotoLiveView = null;
+  if (liveView.process.exitCode !== null || liveView.process.killed) return;
+  liveView.process.kill("SIGINT");
+  await Promise.race([
+    new Promise<void>((resolve) => liveView.process.once("exit", () => resolve())),
+    new Promise<void>((resolve) => setTimeout(resolve, 1500))
+  ]);
+  if (liveView.process.exitCode === null) liveView.process.kill("SIGKILL");
+}
+
+function getGphotoLiveViewFrame(sourceId: string): { dataUrl?: string; error?: string } {
+  if (!gphotoLiveView || gphotoLiveView.sourceId !== sourceId) return { error: "Live view Canon belum dimulai." };
+  if (gphotoLiveView.latestFrame) {
+    return { dataUrl: `data:image/jpeg;base64,${gphotoLiveView.latestFrame.toString("base64")}` };
+  }
+  return { error: gphotoLiveView.error ?? "Menunggu frame live view Canon." };
 }
 
 async function initializePersistence() {
@@ -425,8 +482,11 @@ app.whenReady().then(() => {
     return queueFromSessions(store.sessions);
   });
   ipcMain.handle("camera:list-sources", async () => listCameraSources());
-  ipcMain.handle("camera:capture-preview", async (_event, sourceId: string) => capturePreviewFromGphoto(sourceId));
+  ipcMain.handle("camera:start-live-view", async (_event, sourceId: string) => startGphotoLiveView(sourceId));
+  ipcMain.handle("camera:get-live-view-frame", async (_event, sourceId: string) => getGphotoLiveViewFrame(sourceId));
+  ipcMain.handle("camera:stop-live-view", async () => stopGphotoLiveView());
   ipcMain.handle("camera:select-source", async (_event, input: SelectCameraSourceInput) => {
+    await stopGphotoLiveView();
     selectedCameraSourceId = input.sourceId;
     return { selectedCameraSourceId };
   });
@@ -456,5 +516,6 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
+  void stopGphotoLiveView();
   if (process.platform !== "darwin") app.quit();
 });
