@@ -17,6 +17,8 @@ export default defineConfig({
       rollupOptions: {
         external: [
           "sharp",
+          "googleapis",
+          "nodemailer",
           /^@img\//
         ]
       }

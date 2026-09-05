@@ -18,6 +18,8 @@ jobs:
   windows:
     name: Windows NSIS
     runs-on: windows-latest
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
     steps:
       - uses: actions/checkout@v4
 
@@ -52,6 +54,8 @@ jobs:
   linux:
     name: Linux packages
     runs-on: ubuntu-24.04
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
     steps:
       - uses: actions/checkout@v4
 
