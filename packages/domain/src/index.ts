@@ -57,6 +57,7 @@ export interface StoredSession {
   id: string;
   templateId: string;
   filterId: FilterId;
+  captureCount: 3 | 6;
   status: SessionStatus;
   createdAt: string;
   updatedAt: string;
@@ -110,6 +111,7 @@ export interface CloudStatus {
 export type RemotePhase =
   | "idle"
   | "template"
+  | "photo-count"
   | "ready"
   | "pose-ready"
   | "countdown"
@@ -132,6 +134,7 @@ export interface RemoteSessionState {
   filterId: FilterId;
   filterRendering: boolean;
   templateId?: string;
+  captureCount: 3 | 6;
   publicUrl?: string;
 }
 

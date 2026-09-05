@@ -43,8 +43,8 @@ contextBridge.exposeInMainWorld("photobooth", {
       update: (settings: Partial<BoothSettings>) => ipcRenderer.invoke("settings:update", settings) as Promise<BoothSettings>
   },
   sessions: {
-    create: (input: { templateId: string; filterId: StoredSession["filterId"] }) => ipcRenderer.invoke("session:create", input) as Promise<StoredSession>,
-    updateConfig: (input: { sessionId: string; templateId: string; filterId: StoredSession["filterId"] }) => ipcRenderer.invoke("session:update-config", input) as Promise<StoredSession>,
+    create: (input: { templateId: string; filterId: StoredSession["filterId"]; captureCount: 3 | 6 }) => ipcRenderer.invoke("session:create", input) as Promise<StoredSession>,
+    updateConfig: (input: { sessionId: string; templateId: string; filterId: StoredSession["filterId"]; captureCount?: 3 | 6 }) => ipcRenderer.invoke("session:update-config", input) as Promise<StoredSession>,
     applyFilter: (input: { sessionId: string; filterId: StoredSession["filterId"] }) => ipcRenderer.invoke("session:apply-filter", input) as Promise<StoredSession>,
     captureShot: (input: { sessionId: string; shotIndex: number; dataUrl?: string; countAsRetake?: boolean }) => ipcRenderer.invoke("session:capture-shot", input) as Promise<StoredSession>,
     prepare: (input: { sessionId: string }) => ipcRenderer.invoke("session:prepare", input) as Promise<StoredSession>,
@@ -99,8 +99,8 @@ declare global {
         update(settings: Partial<BoothSettings>): Promise<BoothSettings>;
       };
       sessions: {
-        create(input: { templateId: string; filterId: StoredSession["filterId"] }): Promise<StoredSession>;
-        updateConfig(input: { sessionId: string; templateId: string; filterId: StoredSession["filterId"] }): Promise<StoredSession>;
+        create(input: { templateId: string; filterId: StoredSession["filterId"]; captureCount: 3 | 6 }): Promise<StoredSession>;
+        updateConfig(input: { sessionId: string; templateId: string; filterId: StoredSession["filterId"]; captureCount?: 3 | 6 }): Promise<StoredSession>;
         applyFilter(input: { sessionId: string; filterId: StoredSession["filterId"] }): Promise<StoredSession>;
         captureShot(input: { sessionId: string; shotIndex: number; dataUrl?: string; countAsRetake?: boolean }): Promise<StoredSession>;
         prepare(input: { sessionId: string }): Promise<StoredSession>;

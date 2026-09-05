@@ -14716,6 +14716,7 @@ function App() {
   const [remoteQrUrl, setRemoteQrUrl] = reactExports.useState("");
   const [step, setStep] = reactExports.useState("welcome");
   const [templateId, setTemplateId] = reactExports.useState(templates[0].id);
+  const [selectedCaptureCount, setSelectedCaptureCount] = reactExports.useState(6);
   const [filterId, setFilterId] = reactExports.useState("original");
   const [session, setSession] = reactExports.useState(null);
   const [countdown, setCountdown] = reactExports.useState(3);
@@ -14748,8 +14749,16 @@ function App() {
   const lastCountdownSoundRef = reactExports.useRef("");
   const template = reactExports.useMemo(() => {
     const base = getTemplate(session?.templateId ?? templateId);
-    return { ...base, slots: settings.slotOverrides[base.id] ?? base.slots };
-  }, [session?.templateId, settings.slotOverrides, templateId]);
+    const slots = settings.slotOverrides[base.id] ?? base.slots;
+    const activeCaptureCount = step === "photo-count" ? selectedCaptureCount : session?.captureCount ?? selectedCaptureCount;
+    return {
+      ...base,
+      slots: slots.map((slot, index) => ({
+        ...slot,
+        photoIndex: activeCaptureCount === 3 ? Math.floor(index / 2) : index
+      }))
+    };
+  }, [selectedCaptureCount, session?.captureCount, session?.templateId, settings.slotOverrides, step, templateId]);
   const editorTemplate = reactExports.useMemo(() => {
     const base = getTemplate(editorTemplateId);
     return { ...base, slots: settings.slotOverrides[base.id] ?? base.slots };
@@ -14757,6 +14766,7 @@ function App() {
   const editorSlot = editorTemplate.slots[editorSlotIndex] ?? editorTemplate.slots[0];
   const filter = reactExports.useMemo(() => filters.find((item) => item.id === (session?.filterId ?? filterId)) ?? filters[0], [filterId, session?.filterId]);
   const shots = session?.shots ?? [];
+  const captureCount = step === "photo-count" ? selectedCaptureCount : session?.captureCount ?? selectedCaptureCount;
   const cameraActive = step === "ready" || step === "pose-ready" || step === "capture";
   reactExports.useEffect(() => {
     window.photobooth.system.ping().then(() => setSystemStatus("Desktop siap dipakai")).catch(() => setSystemStatus("Main process tidak merespons"));
@@ -14766,6 +14776,9 @@ function App() {
     if (command === "new-session" && step === "welcome") void startSession();
     if (command.startsWith("frame:") && step === "template") setTemplateId(command.slice("frame:".length));
     if (command === "confirm-frame" && step === "template") void confirmFrameSelection();
+    if (command === "capture-count:3" && step === "photo-count") setSelectedCaptureCount(3);
+    if (command === "capture-count:6" && step === "photo-count") setSelectedCaptureCount(6);
+    if (command === "confirm-count" && step === "photo-count") void confirmCaptureCount();
     if (command === "cancel-session" && step !== "welcome") resetToWelcome();
     if (command === "start" && step === "ready") beginCapture();
     if (command === "start" && step === "pose-ready") startPoseCountdown();
@@ -14773,11 +14786,12 @@ function App() {
     if (command === "retake" && step === "shot-review") rejectCapturedShot();
     if (command.startsWith("filter:") && step === "review") selectFinalFilter(command.slice("filter:".length));
     if (command === "prepare" && step === "review") void prepareLocalResults();
-  }), [step, session, cameraReady, selectedCameraSourceId, lastCapturedIndex, replaceIndex, countdown, templateId]);
+  }), [step, session, cameraReady, selectedCameraSourceId, lastCapturedIndex, replaceIndex, countdown, selectedCaptureCount, templateId]);
   reactExports.useEffect(() => {
     const phaseMap = {
       welcome: "idle",
       template: "template",
+      "photo-count": "photo-count",
       ready: "ready",
       "pose-ready": "pose-ready",
       capture: countdown > 1 ? "countdown" : "capturing",
@@ -14790,7 +14804,7 @@ function App() {
       phase: phaseMap[step],
       sessionId: session?.id,
       shotIndex: lastCapturedIndex ?? replaceIndex ?? captureIndex,
-      totalShots: template.captureCount,
+      totalShots: captureCount,
       countdown: step === "capture" ? countdown : void 0,
       cameraReady: cameraReady || selectedCameraSourceId.startsWith("gphoto:"),
       stripReady: Boolean(session?.finalStripPath),
@@ -14798,14 +14812,15 @@ function App() {
       filterId: session?.filterId ?? filterId,
       filterRendering,
       templateId,
+      captureCount,
       publicUrl: session?.driveUrl,
       stripPath: session?.finalStripPath,
       gifPath: session?.finalGifPath
     });
-  }, [cameraReady, captureIndex, countdown, filterId, filterRendering, lastCapturedIndex, replaceIndex, selectedCameraSourceId, session, step, template.captureCount, templateId]);
+  }, [cameraReady, captureCount, captureIndex, countdown, filterId, filterRendering, lastCapturedIndex, replaceIndex, selectedCameraSourceId, session, step, templateId]);
   reactExports.useEffect(() => {
     if (!remoteStatus.enabled) return;
-    if (step === "welcome" || step === "template") {
+    if (step === "welcome" || step === "template" || step === "photo-count") {
       void window.photobooth.remote.updatePreview(void 0);
       return;
     }
@@ -14878,7 +14893,7 @@ function App() {
       });
     }, CAPTURE_INTERVAL_MS);
     return () => clearTimeout(timer);
-  }, [cameraReady, captureIndex, countdown, replaceIndex, selectedCameraSourceId, session, settings.countdownSeconds, step, template.captureCount]);
+  }, [cameraReady, captureCount, captureIndex, countdown, replaceIndex, selectedCameraSourceId, session, settings.countdownSeconds, step]);
   reactExports.useEffect(() => {
     if (!cameraActive) {
       stopCamera();
@@ -15037,9 +15052,11 @@ function App() {
   async function startSession() {
     const defaultTemplateId = templates.find((item) => item.id === "frame-3")?.id ?? templates[0].id;
     const defaultFilterId = "original";
+    const defaultCaptureCount = 6;
     setTemplateId(defaultTemplateId);
     setFilterId(defaultFilterId);
-    const nextSession = await window.photobooth.sessions.create({ templateId: defaultTemplateId, filterId: defaultFilterId });
+    setSelectedCaptureCount(defaultCaptureCount);
+    const nextSession = await window.photobooth.sessions.create({ templateId: defaultTemplateId, filterId: defaultFilterId, captureCount: defaultCaptureCount });
     setSession(nextSession);
     updateSessionCollection(nextSession);
     setCaptureIndex(0);
@@ -15057,10 +15074,18 @@ function App() {
   }
   async function confirmFrameSelection() {
     if (!session) return;
-    const updated = await window.photobooth.sessions.updateConfig({ sessionId: session.id, templateId, filterId });
+    const updated = await window.photobooth.sessions.updateConfig({ sessionId: session.id, templateId, filterId, captureCount: selectedCaptureCount });
     setSession(updated);
     updateSessionCollection(updated);
-    setQueueStatus(`${getTemplate(templateId).name} siap dipakai.`);
+    setQueueStatus(`${getTemplate(templateId).name} dipilih. Tentukan jumlah foto.`);
+    setStep("photo-count");
+  }
+  async function confirmCaptureCount() {
+    if (!session) return;
+    const updated = await window.photobooth.sessions.updateConfig({ sessionId: session.id, templateId, filterId, captureCount: selectedCaptureCount });
+    setSession(updated);
+    updateSessionCollection(updated);
+    setQueueStatus(`${selectedCaptureCount} foto siap diambil.`);
     setStep("ready");
   }
   function cancelSession() {
@@ -15077,7 +15102,7 @@ function App() {
     captureCycleRef.current += 1;
     setCaptureIndex(0);
     setCountdown(settings.countdownSeconds);
-    setQueueStatus(`Ambil ${template.captureCount} foto untuk template ${template.name}.`);
+    setQueueStatus(`Ambil ${captureCount} foto untuk template ${template.name}.`);
     setStep("capture");
   }
   function requestRetake(shotIndex) {
@@ -15098,7 +15123,7 @@ function App() {
       setStep("review");
       return;
     }
-    if (lastCapturedIndex + 1 >= template.captureCount) {
+    if (lastCapturedIndex + 1 >= captureCount) {
       setLastCapturedIndex(null);
       setQueueStatus("Semua foto sudah diambil. Cek hasil strip kamu.");
       setStep("review");
@@ -15130,7 +15155,7 @@ function App() {
     setStep("capture");
   }
   async function finishReview() {
-    if (!session || shots.length !== template.captureCount) return;
+    if (!session || shots.length !== captureCount) return;
     let preparedSession = session;
     if (!session.finalStripPath || !session.finalGifPath) {
       const prepared = await prepareLocalResults();
@@ -15405,14 +15430,37 @@ function App() {
         ] })
       ] })
     ] }),
+    step === "photo-count" && session && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "screen-card photo-count-screen", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "photo-count-copy", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "JUMLAH FOTO" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "Pilih ritme sesimu." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Frame tetap memiliki 6 slot. Tiga foto akan dipasang berpasangan, sedangkan enam foto mengisi setiap slot secara unik." })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "photo-count-options", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: `photo-count-option${selectedCaptureCount === 3 ? " selected" : ""}`, onClick: () => setSelectedCaptureCount(3), children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "3" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "foto" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "count-mapping three", "aria-hidden": "true", children: [1, 1, 2, 2, 3, 3].map((number, index) => /* @__PURE__ */ jsxRuntimeExports.jsx("i", { children: number }, index)) })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: `photo-count-option${selectedCaptureCount === 6 ? " selected" : ""}`, onClick: () => setSelectedCaptureCount(6), children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "6" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "foto" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "count-mapping", "aria-hidden": "true", children: [1, 2, 3, 4, 5, 6].map((number) => /* @__PURE__ */ jsxRuntimeExports.jsx("i", { children: number }, number)) })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "photo-count-actions", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", onClick: () => setStep("template"), children: "Kembali" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: () => void confirmCaptureCount(), children: "Lanjut ke kamera" })
+      ] })
+    ] }),
     step === "ready" && session && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "ready-layout screen-card", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "camera-stage", children: /* @__PURE__ */ jsxRuntimeExports.jsx(CameraStage, { videoRef, cameraReady, cameraError, filterCss: filter.cssFilter, label: cameraLabel, nativePreviewUrl }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "side-panel", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "KAMERA SIAP" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "Semua sudah masuk frame?" }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "body small", children: [
-          "Frame default memakai ",
-          template.captureCount,
+          "Sesi ini memakai ",
+          captureCount,
           " foto. Kalau kamera belum siap, kamu tetap bisa kembali dan ganti source kamera dari operator."
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "detail-list", children: [
@@ -15456,7 +15504,7 @@ function App() {
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: captureError })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "dual-actions", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", onClick: () => setStep("template"), children: "Kembali" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", onClick: () => setStep("photo-count"), children: "Kembali" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: beginCapture, disabled: !cameraReady && !selectedCameraSourceId.startsWith("gphoto:"), children: "Mulai foto" })
         ] })
       ] })
@@ -15470,22 +15518,22 @@ function App() {
             cameraReady,
             cameraError,
             filterCss: filter.cssFilter,
-            label: replaceIndex === null ? `Foto ${captureIndex + 1} dari ${template.captureCount} · ${cameraLabel}` : `Ulangi foto ${replaceIndex + 1} · ${cameraLabel}`,
+            label: replaceIndex === null ? `Foto ${captureIndex + 1} dari ${captureCount} · ${cameraLabel}` : `Ulangi foto ${replaceIndex + 1} · ${cameraLabel}`,
             nativePreviewUrl
           }
         ),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "countdown-ring", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? countdown : "·" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? replaceIndex === null ? `Foto ${captureIndex + 1} dari ${template.captureCount}` : `Retake foto ${replaceIndex + 1}` : "Menunggu kamera" })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? replaceIndex === null ? `Foto ${captureIndex + 1} dari ${captureCount}` : `Retake foto ${replaceIndex + 1}` : "Menunggu kamera" })
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(ShotRail, { shots, activeIndex: replaceIndex ?? captureIndex, totalCount: template.captureCount })
+        /* @__PURE__ */ jsxRuntimeExports.jsx(ShotRail, { shots, activeIndex: replaceIndex ?? captureIndex, totalCount: captureCount })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "capture-rail", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "CAPTURE" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: replaceIndex === null ? "Ganti gaya tiap hitungan." : "Ambil ulang foto yang dipilih." }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Shutter berlangsung otomatis. Tiap foto yang sudah aman langsung masuk ke strip dan tidak hilang saat pergantian pose." }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "capture-status-card", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: replaceIndex === null ? `Pose ${captureIndex + 1} dari ${template.captureCount}` : `Retake foto ${replaceIndex + 1}` }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: replaceIndex === null ? `Pose ${captureIndex + 1} dari ${captureCount}` : `Retake foto ${replaceIndex + 1}` }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: !cameraReady && !selectedCameraSourceId.startsWith("gphoto:") ? "Menghubungkan kembali stream kamera." : countdown > 1 ? `Bersiap, foto akan diambil dalam ${countdown} detik.` : "Jepret sekarang." })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button full", onClick: () => setStep("ready"), children: "Kembali ke kamera" })
@@ -15500,18 +15548,18 @@ function App() {
             cameraReady,
             cameraError,
             filterCss: filter.cssFilter,
-            label: replaceIndex !== null ? `Siap ulang foto ${replaceIndex + 1} · ${cameraLabel}` : `Siap foto ${captureIndex + 1} dari ${template.captureCount} · ${cameraLabel}`,
+            label: replaceIndex !== null ? `Siap ulang foto ${replaceIndex + 1} · ${cameraLabel}` : `Siap foto ${captureIndex + 1} dari ${captureCount} · ${cameraLabel}`,
             nativePreviewUrl
           }
         ),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(ShotRail, { shots, activeIndex: replaceIndex ?? captureIndex, totalCount: template.captureCount })
+        /* @__PURE__ */ jsxRuntimeExports.jsx(ShotRail, { shots, activeIndex: replaceIndex ?? captureIndex, totalCount: captureCount })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "capture-rail pose-ready-panel", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "SIAP POSE" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: replaceIndex !== null ? `Ulang foto ${replaceIndex + 1}.` : `Foto ${captureIndex + 1} berikutnya.` }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Atur pose dulu. Countdown baru berjalan setelah tombol Mulai ditekan." }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "capture-status-card", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: replaceIndex !== null ? `Retake foto ${replaceIndex + 1}` : `Pose ${captureIndex + 1} dari ${template.captureCount}` }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: replaceIndex !== null ? `Retake foto ${replaceIndex + 1}` : `Pose ${captureIndex + 1} dari ${captureCount}` }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? "Kamera siap. Tekan Mulai kalau semua sudah siap." : "Menunggu kamera tersambung." })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pose-ready-actions", children: [
@@ -15539,10 +15587,10 @@ function App() {
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "Mau pakai foto ini?" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Kalau sudah pas, lanjut ke pose berikutnya. Kalau belum, batalkan dan ambil ulang foto yang sama." }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "shot-review-progress", children: Array.from({ length: template.captureCount }, (_, index) => /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: index <= lastCapturedIndex ? "filled" : "", children: index + 1 }, index)) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "shot-review-progress", children: Array.from({ length: captureCount }, (_, index) => /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: index <= lastCapturedIndex ? "filled" : "", children: index + 1 }, index)) }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "shot-review-actions", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", onClick: rejectCapturedShot, children: "Ulang" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: acceptCapturedShot, children: replaceIndex !== null || lastCapturedIndex + 1 >= template.captureCount ? "Pakai" : "Next" })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: acceptCapturedShot, children: replaceIndex !== null || lastCapturedIndex + 1 >= captureCount ? "Pakai" : "Next" })
         ] })
       ] })
     ] }),
@@ -15566,7 +15614,7 @@ function App() {
           )) }),
           filterRendering && /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: "Membuat strip dan GIF..." })
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "shot-list", children: Array.from({ length: template.captureCount }, (_, index) => {
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "shot-list", children: Array.from({ length: captureCount }, (_, index) => {
           const shot = shots.find((item) => item.shotIndex === index);
           const remainingRetake = Math.max(0, settings.retakeLimitPerPhoto - (shot?.attemptsUsed ?? 0));
           return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "shot-card", children: [
@@ -15584,8 +15632,8 @@ function App() {
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "panel-footer", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "footer-note", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("strong", { children: [
-              template.captureCount,
-              " foto terpasang"
+              captureCount,
+              " foto terpasang ke 6 slot"
             ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Lanjutkan untuk upload dan membuat QR hasil." })
           ] }),

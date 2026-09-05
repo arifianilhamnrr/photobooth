@@ -285,6 +285,93 @@ button {
   justify-content: flex-end;
 }
 
+.photo-count-screen {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 20px;
+  padding: 28px;
+}
+
+.photo-count-copy {
+  text-align: center;
+}
+
+.photo-count-copy h2 {
+  margin: 12px 0 0;
+  font-size: clamp(36px, 4vw, 56px);
+  line-height: 1;
+  letter-spacing: -0.055em;
+}
+
+.photo-count-copy .body {
+  margin-inline: auto;
+  max-width: 58ch;
+}
+
+.photo-count-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 320px));
+  place-content: center;
+  gap: 20px;
+}
+
+.photo-count-option {
+  display: grid;
+  place-items: center;
+  gap: 3px;
+  min-height: 280px;
+  padding: 24px;
+  border: 1px solid #3a3f43;
+  border-radius: 22px;
+  background: #141719;
+  color: #f2f1ed;
+}
+
+.photo-count-option.selected {
+  border: 3px solid var(--accent-color);
+  padding: 22px;
+}
+
+.photo-count-option > strong {
+  font-size: 82px;
+  line-height: .9;
+  letter-spacing: -.08em;
+}
+
+.photo-count-option > span {
+  color: #aeb4b7;
+  font-size: 16px;
+}
+
+.count-mapping {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 5px;
+  width: 100%;
+  margin-top: 22px;
+}
+
+.count-mapping i {
+  display: grid;
+  place-items: center;
+  height: 34px;
+  border-radius: 8px;
+  background: #292d30;
+  color: #d7dbdd;
+  font-style: normal;
+  font-size: 12px;
+}
+
+.count-mapping.three i:nth-child(2n) {
+  background: #34393d;
+}
+
+.photo-count-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
 .template-card {
   display: grid;
   grid-template-columns: 180px 1fr;

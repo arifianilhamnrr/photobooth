@@ -24,7 +24,7 @@ import {
   type TemplateSlot
 } from "@photobooth/domain";
 
-type Step = "welcome" | "template" | "ready" | "pose-ready" | "capture" | "shot-review" | "review" | "saving" | "result";
+type Step = "welcome" | "template" | "photo-count" | "ready" | "pose-ready" | "capture" | "shot-review" | "review" | "saving" | "result";
 
 const CAPTURE_INTERVAL_MS = 900;
 
@@ -49,6 +49,7 @@ export default function App() {
   const [remoteQrUrl, setRemoteQrUrl] = useState("");
   const [step, setStep] = useState<Step>("welcome");
   const [templateId, setTemplateId] = useState(templates[0].id);
+  const [selectedCaptureCount, setSelectedCaptureCount] = useState<3 | 6>(6);
   const [filterId, setFilterId] = useState<FilterId>("original");
   const [session, setSession] = useState<StoredSession | null>(null);
   const [countdown, setCountdown] = useState(3);
@@ -82,8 +83,16 @@ export default function App() {
 
   const template = useMemo<PhotoTemplate>(() => {
     const base = getTemplate(session?.templateId ?? templateId);
-    return { ...base, slots: settings.slotOverrides[base.id] ?? base.slots };
-  }, [session?.templateId, settings.slotOverrides, templateId]);
+    const slots = settings.slotOverrides[base.id] ?? base.slots;
+    const activeCaptureCount = step === "photo-count" ? selectedCaptureCount : session?.captureCount ?? selectedCaptureCount;
+    return {
+      ...base,
+      slots: slots.map((slot, index) => ({
+        ...slot,
+        photoIndex: activeCaptureCount === 3 ? Math.floor(index / 2) : index
+      }))
+    };
+  }, [selectedCaptureCount, session?.captureCount, session?.templateId, settings.slotOverrides, step, templateId]);
   const editorTemplate = useMemo<PhotoTemplate>(() => {
     const base = getTemplate(editorTemplateId);
     return { ...base, slots: settings.slotOverrides[base.id] ?? base.slots };
@@ -91,6 +100,7 @@ export default function App() {
   const editorSlot = editorTemplate.slots[editorSlotIndex] ?? editorTemplate.slots[0];
   const filter = useMemo(() => filters.find((item) => item.id === (session?.filterId ?? filterId)) ?? filters[0], [filterId, session?.filterId]);
   const shots = session?.shots ?? [];
+  const captureCount = step === "photo-count" ? selectedCaptureCount : session?.captureCount ?? selectedCaptureCount;
   const cameraActive = step === "ready" || step === "pose-ready" || step === "capture";
 
   useEffect(() => {
@@ -102,6 +112,9 @@ export default function App() {
     if (command === "new-session" && step === "welcome") void startSession();
     if (command.startsWith("frame:") && step === "template") setTemplateId(command.slice("frame:".length));
     if (command === "confirm-frame" && step === "template") void confirmFrameSelection();
+    if (command === "capture-count:3" && step === "photo-count") setSelectedCaptureCount(3);
+    if (command === "capture-count:6" && step === "photo-count") setSelectedCaptureCount(6);
+    if (command === "confirm-count" && step === "photo-count") void confirmCaptureCount();
     if (command === "cancel-session" && step !== "welcome") resetToWelcome();
     if (command === "start" && step === "ready") beginCapture();
     if (command === "start" && step === "pose-ready") startPoseCountdown();
@@ -109,12 +122,13 @@ export default function App() {
     if (command === "retake" && step === "shot-review") rejectCapturedShot();
     if (command.startsWith("filter:") && step === "review") selectFinalFilter(command.slice("filter:".length) as FilterId);
     if (command === "prepare" && step === "review") void prepareLocalResults();
-  }), [step, session, cameraReady, selectedCameraSourceId, lastCapturedIndex, replaceIndex, countdown, templateId]);
+  }), [step, session, cameraReady, selectedCameraSourceId, lastCapturedIndex, replaceIndex, countdown, selectedCaptureCount, templateId]);
 
   useEffect(() => {
     const phaseMap: Record<Step, RemotePhase> = {
       welcome: "idle",
       template: "template",
+      "photo-count": "photo-count",
       ready: "ready",
       "pose-ready": "pose-ready",
       capture: countdown > 1 ? "countdown" : "capturing",
@@ -127,7 +141,7 @@ export default function App() {
       phase: phaseMap[step],
       sessionId: session?.id,
       shotIndex: lastCapturedIndex ?? replaceIndex ?? captureIndex,
-      totalShots: template.captureCount,
+      totalShots: captureCount,
       countdown: step === "capture" ? countdown : undefined,
       cameraReady: cameraReady || selectedCameraSourceId.startsWith("gphoto:"),
       stripReady: Boolean(session?.finalStripPath),
@@ -135,15 +149,16 @@ export default function App() {
       filterId: session?.filterId ?? filterId,
       filterRendering,
       templateId,
+      captureCount,
       publicUrl: session?.driveUrl,
       stripPath: session?.finalStripPath,
       gifPath: session?.finalGifPath
     });
-  }, [cameraReady, captureIndex, countdown, filterId, filterRendering, lastCapturedIndex, replaceIndex, selectedCameraSourceId, session, step, template.captureCount, templateId]);
+  }, [cameraReady, captureCount, captureIndex, countdown, filterId, filterRendering, lastCapturedIndex, replaceIndex, selectedCameraSourceId, session, step, templateId]);
 
   useEffect(() => {
     if (!remoteStatus.enabled) return;
-    if (step === "welcome" || step === "template") {
+    if (step === "welcome" || step === "template" || step === "photo-count") {
       void window.photobooth.remote.updatePreview(undefined);
       return;
     }
@@ -227,7 +242,7 @@ export default function App() {
     }, CAPTURE_INTERVAL_MS);
 
     return () => clearTimeout(timer);
-  }, [cameraReady, captureIndex, countdown, replaceIndex, selectedCameraSourceId, session, settings.countdownSeconds, step, template.captureCount]);
+  }, [cameraReady, captureCount, captureIndex, countdown, replaceIndex, selectedCameraSourceId, session, settings.countdownSeconds, step]);
 
   useEffect(() => {
     if (!cameraActive) {
@@ -403,9 +418,11 @@ export default function App() {
   async function startSession() {
     const defaultTemplateId = templates.find((item) => item.id === "frame-3")?.id ?? templates[0].id;
     const defaultFilterId: FilterId = "original";
+    const defaultCaptureCount: 3 | 6 = 6;
     setTemplateId(defaultTemplateId);
     setFilterId(defaultFilterId);
-    const nextSession = await window.photobooth.sessions.create({ templateId: defaultTemplateId, filterId: defaultFilterId });
+    setSelectedCaptureCount(defaultCaptureCount);
+    const nextSession = await window.photobooth.sessions.create({ templateId: defaultTemplateId, filterId: defaultFilterId, captureCount: defaultCaptureCount });
     setSession(nextSession);
     updateSessionCollection(nextSession);
     setCaptureIndex(0);
@@ -424,10 +441,19 @@ export default function App() {
 
   async function confirmFrameSelection() {
     if (!session) return;
-    const updated = await window.photobooth.sessions.updateConfig({ sessionId: session.id, templateId, filterId });
+    const updated = await window.photobooth.sessions.updateConfig({ sessionId: session.id, templateId, filterId, captureCount: selectedCaptureCount });
     setSession(updated);
     updateSessionCollection(updated);
-    setQueueStatus(`${getTemplate(templateId).name} siap dipakai.`);
+    setQueueStatus(`${getTemplate(templateId).name} dipilih. Tentukan jumlah foto.`);
+    setStep("photo-count");
+  }
+
+  async function confirmCaptureCount() {
+    if (!session) return;
+    const updated = await window.photobooth.sessions.updateConfig({ sessionId: session.id, templateId, filterId, captureCount: selectedCaptureCount });
+    setSession(updated);
+    updateSessionCollection(updated);
+    setQueueStatus(`${selectedCaptureCount} foto siap diambil.`);
     setStep("ready");
   }
 
@@ -446,7 +472,7 @@ export default function App() {
     captureCycleRef.current += 1;
     setCaptureIndex(0);
     setCountdown(settings.countdownSeconds);
-    setQueueStatus(`Ambil ${template.captureCount} foto untuk template ${template.name}.`);
+    setQueueStatus(`Ambil ${captureCount} foto untuk template ${template.name}.`);
     setStep("capture");
   }
 
@@ -470,7 +496,7 @@ export default function App() {
       return;
     }
 
-    if (lastCapturedIndex + 1 >= template.captureCount) {
+    if (lastCapturedIndex + 1 >= captureCount) {
       setLastCapturedIndex(null);
       setQueueStatus("Semua foto sudah diambil. Cek hasil strip kamu.");
       setStep("review");
@@ -506,7 +532,7 @@ export default function App() {
   }
 
   async function finishReview() {
-    if (!session || shots.length !== template.captureCount) return;
+    if (!session || shots.length !== captureCount) return;
     let preparedSession = session;
     if (!session.finalStripPath || !session.finalGifPath) {
       const prepared = await prepareLocalResults();
@@ -811,6 +837,36 @@ export default function App() {
         </section>
       )}
 
+      {step === "photo-count" && session && (
+        <section className="screen-card photo-count-screen">
+          <div className="photo-count-copy">
+            <p className="eyebrow">JUMLAH FOTO</p>
+            <h2>Pilih ritme sesimu.</h2>
+            <p className="body small">Frame tetap memiliki 6 slot. Tiga foto akan dipasang berpasangan, sedangkan enam foto mengisi setiap slot secara unik.</p>
+          </div>
+          <div className="photo-count-options">
+            <button className={`photo-count-option${selectedCaptureCount === 3 ? " selected" : ""}`} onClick={() => setSelectedCaptureCount(3)}>
+              <strong>3</strong>
+              <span>foto</span>
+              <div className="count-mapping three" aria-hidden="true">
+                {[1, 1, 2, 2, 3, 3].map((number, index) => <i key={index}>{number}</i>)}
+              </div>
+            </button>
+            <button className={`photo-count-option${selectedCaptureCount === 6 ? " selected" : ""}`} onClick={() => setSelectedCaptureCount(6)}>
+              <strong>6</strong>
+              <span>foto</span>
+              <div className="count-mapping" aria-hidden="true">
+                {[1, 2, 3, 4, 5, 6].map((number) => <i key={number}>{number}</i>)}
+              </div>
+            </button>
+          </div>
+          <div className="photo-count-actions">
+            <button className="secondary-button" onClick={() => setStep("template")}>Kembali</button>
+            <button className="primary-button" onClick={() => void confirmCaptureCount()}>Lanjut ke kamera</button>
+          </div>
+        </section>
+      )}
+
       {step === "ready" && session && (
         <section className="ready-layout screen-card">
           <div className="camera-stage">
@@ -819,7 +875,7 @@ export default function App() {
           <div className="side-panel">
             <p className="eyebrow">KAMERA SIAP</p>
             <h2>Semua sudah masuk frame?</h2>
-            <p className="body small">Frame default memakai {template.captureCount} foto. Kalau kamera belum siap, kamu tetap bisa kembali dan ganti source kamera dari operator.</p>
+            <p className="body small">Sesi ini memakai {captureCount} foto. Kalau kamera belum siap, kamu tetap bisa kembali dan ganti source kamera dari operator.</p>
             <div className="detail-list">
               <div><span>Template</span><strong>{template.name}</strong></div>
               <div><span>Filter</span><strong>Dipilih setelah foto</strong></div>
@@ -846,7 +902,7 @@ export default function App() {
             )}
             {captureError && <div className="inline-warning"><strong>Foto belum berhasil.</strong><span>{captureError}</span></div>}
             <div className="dual-actions">
-              <button className="secondary-button" onClick={() => setStep("template")}>Kembali</button>
+              <button className="secondary-button" onClick={() => setStep("photo-count")}>Kembali</button>
               <button className="primary-button" onClick={beginCapture} disabled={!cameraReady && !selectedCameraSourceId.startsWith("gphoto:")}>Mulai foto</button>
             </div>
           </div>
@@ -861,21 +917,21 @@ export default function App() {
               cameraReady={cameraReady}
               cameraError={cameraError}
               filterCss={filter.cssFilter}
-              label={replaceIndex === null ? `Foto ${captureIndex + 1} dari ${template.captureCount} · ${cameraLabel}` : `Ulangi foto ${replaceIndex + 1} · ${cameraLabel}`}
+              label={replaceIndex === null ? `Foto ${captureIndex + 1} dari ${captureCount} · ${cameraLabel}` : `Ulangi foto ${replaceIndex + 1} · ${cameraLabel}`}
               nativePreviewUrl={nativePreviewUrl}
             />
             <div className="countdown-ring">
               <span>{cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? countdown : "·"}</span>
-              <small>{cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? (replaceIndex === null ? `Foto ${captureIndex + 1} dari ${template.captureCount}` : `Retake foto ${replaceIndex + 1}`) : "Menunggu kamera"}</small>
+              <small>{cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? (replaceIndex === null ? `Foto ${captureIndex + 1} dari ${captureCount}` : `Retake foto ${replaceIndex + 1}`) : "Menunggu kamera"}</small>
             </div>
-            <ShotRail shots={shots} activeIndex={replaceIndex ?? captureIndex} totalCount={template.captureCount} />
+            <ShotRail shots={shots} activeIndex={replaceIndex ?? captureIndex} totalCount={captureCount} />
           </div>
           <div className="capture-rail">
             <p className="eyebrow">CAPTURE</p>
             <h2>{replaceIndex === null ? "Ganti gaya tiap hitungan." : "Ambil ulang foto yang dipilih."}</h2>
             <p className="body small">Shutter berlangsung otomatis. Tiap foto yang sudah aman langsung masuk ke strip dan tidak hilang saat pergantian pose.</p>
             <div className="capture-status-card">
-              <strong>{replaceIndex === null ? `Pose ${captureIndex + 1} dari ${template.captureCount}` : `Retake foto ${replaceIndex + 1}`}</strong>
+              <strong>{replaceIndex === null ? `Pose ${captureIndex + 1} dari ${captureCount}` : `Retake foto ${replaceIndex + 1}`}</strong>
               <span>{!cameraReady && !selectedCameraSourceId.startsWith("gphoto:") ? "Menghubungkan kembali stream kamera." : countdown > 1 ? `Bersiap, foto akan diambil dalam ${countdown} detik.` : "Jepret sekarang."}</span>
             </div>
             <button className="secondary-button full" onClick={() => setStep("ready")}>Kembali ke kamera</button>
@@ -891,17 +947,17 @@ export default function App() {
               cameraReady={cameraReady}
               cameraError={cameraError}
               filterCss={filter.cssFilter}
-              label={replaceIndex !== null ? `Siap ulang foto ${replaceIndex + 1} · ${cameraLabel}` : `Siap foto ${captureIndex + 1} dari ${template.captureCount} · ${cameraLabel}`}
+              label={replaceIndex !== null ? `Siap ulang foto ${replaceIndex + 1} · ${cameraLabel}` : `Siap foto ${captureIndex + 1} dari ${captureCount} · ${cameraLabel}`}
               nativePreviewUrl={nativePreviewUrl}
             />
-            <ShotRail shots={shots} activeIndex={replaceIndex ?? captureIndex} totalCount={template.captureCount} />
+            <ShotRail shots={shots} activeIndex={replaceIndex ?? captureIndex} totalCount={captureCount} />
           </div>
           <div className="capture-rail pose-ready-panel">
             <p className="eyebrow">SIAP POSE</p>
             <h2>{replaceIndex !== null ? `Ulang foto ${replaceIndex + 1}.` : `Foto ${captureIndex + 1} berikutnya.`}</h2>
             <p className="body small">Atur pose dulu. Countdown baru berjalan setelah tombol Mulai ditekan.</p>
             <div className="capture-status-card">
-              <strong>{replaceIndex !== null ? `Retake foto ${replaceIndex + 1}` : `Pose ${captureIndex + 1} dari ${template.captureCount}`}</strong>
+              <strong>{replaceIndex !== null ? `Retake foto ${replaceIndex + 1}` : `Pose ${captureIndex + 1} dari ${captureCount}`}</strong>
               <span>{cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? "Kamera siap. Tekan Mulai kalau semua sudah siap." : "Menunggu kamera tersambung."}</span>
             </div>
             <div className="pose-ready-actions">
@@ -930,14 +986,14 @@ export default function App() {
             <h2>Mau pakai foto ini?</h2>
             <p className="body small">Kalau sudah pas, lanjut ke pose berikutnya. Kalau belum, batalkan dan ambil ulang foto yang sama.</p>
             <div className="shot-review-progress">
-              {Array.from({ length: template.captureCount }, (_, index) => (
+              {Array.from({ length: captureCount }, (_, index) => (
                 <span key={index} className={index <= lastCapturedIndex ? "filled" : ""}>{index + 1}</span>
               ))}
             </div>
             <div className="shot-review-actions">
               <button className="secondary-button" onClick={rejectCapturedShot}>Ulang</button>
               <button className="primary-button" onClick={acceptCapturedShot}>
-                {replaceIndex !== null || lastCapturedIndex + 1 >= template.captureCount ? "Pakai" : "Next"}
+                {replaceIndex !== null || lastCapturedIndex + 1 >= captureCount ? "Pakai" : "Next"}
               </button>
             </div>
           </div>
@@ -970,7 +1026,7 @@ export default function App() {
               {filterRendering && <small>Membuat strip dan GIF...</small>}
             </div>
             <div className="shot-list">
-              {Array.from({ length: template.captureCount }, (_, index) => {
+              {Array.from({ length: captureCount }, (_, index) => {
                 const shot = shots.find((item) => item.shotIndex === index);
                 const remainingRetake = Math.max(0, settings.retakeLimitPerPhoto - (shot?.attemptsUsed ?? 0));
                 return (
@@ -995,7 +1051,7 @@ export default function App() {
             </div>
             <div className="panel-footer">
               <div className="footer-note">
-                <strong>{template.captureCount} foto terpasang</strong>
+                <strong>{captureCount} foto terpasang ke 6 slot</strong>
                 <span>Lanjutkan untuk upload dan membuat QR hasil.</span>
               </div>
               {emailError && <p className="error-text">{emailError}</p>}

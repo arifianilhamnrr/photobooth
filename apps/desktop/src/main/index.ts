@@ -94,6 +94,7 @@ const driveService = new GoogleDriveService(
 interface CreateSessionInput {
   templateId: string;
   filterId: FilterId;
+  captureCount: 3 | 6;
 }
 
 interface CaptureShotInput {
@@ -116,6 +117,7 @@ interface UpdateSessionConfigInput {
   sessionId: string;
   templateId: string;
   filterId: FilterId;
+  captureCount?: 3 | 6;
 }
 
 interface ApplySessionFilterInput {
@@ -270,9 +272,13 @@ async function saveSession(session: StoredSession) {
 async function renderFinalStripForSession(session: StoredSession): Promise<StoredSession> {
   const baseTemplate = getTemplate(session.templateId);
   const settings = readSnapshotFromDatabase(database).settings;
+  const baseSlots = settings.slotOverrides[baseTemplate.id] ?? baseTemplate.slots;
   const template = {
     ...baseTemplate,
-    slots: settings.slotOverrides[baseTemplate.id] ?? baseTemplate.slots
+    slots: baseSlots.map((slot, index) => ({
+      ...slot,
+      photoIndex: session.captureCount === 3 ? Math.floor(index / 2) : index
+    }))
   };
   const overlayPath = app.isPackaged
     ? join(process.resourcesPath, "frames", template.overlayAsset)
@@ -430,6 +436,7 @@ app.whenReady().then(() => {
       id: basename(sessionDir),
       templateId: input.templateId,
       filterId: input.filterId,
+      captureCount: input.captureCount,
       status: "draft",
       createdAt: now,
       updatedAt: now,
@@ -457,7 +464,7 @@ app.whenReady().then(() => {
       capturedAt: new Date().toISOString()
     };
     const shots = [...session.shots.filter((item) => item.shotIndex !== input.shotIndex), nextShot].sort((left, right) => left.shotIndex - right.shotIndex);
-    const captureCount = getTemplate(session.templateId).captureCount;
+    const captureCount = session.captureCount;
     const nextSession = updateSession(session, {
       status: nextStatusForShotCount(shots, captureCount),
       sessionDir,
@@ -503,6 +510,7 @@ app.whenReady().then(() => {
     const nextSession = updateSession(session, {
       templateId: input.templateId,
       filterId: input.filterId,
+      captureCount: input.captureCount ?? session.captureCount,
       finalStripPath: undefined,
       finalStripDataUrl: undefined,
       finalGifPath: undefined,
