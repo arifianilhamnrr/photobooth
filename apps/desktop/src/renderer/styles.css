@@ -563,7 +563,6 @@ button {
 .live-camera {
   display: block;
   object-fit: cover;
-  transform: scaleX(-1);
 }
 
 .native-camera-preview {
