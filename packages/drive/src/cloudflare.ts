@@ -12,18 +12,7 @@ export class CloudflareUploadService {
   async publishSession(session: StoredSession, eventName: string): Promise<{ folderUrl: string }> {
     if (!this.baseUrl) throw new Error("Cloudflare upload belum dikonfigurasi");
     if (!session.finalStripPath) throw new Error("Strip final belum tersedia");
-    const stripBase64 = (await readFile(session.finalStripPath)).toString("base64");
-    const gifBase64 = session.finalGifPath ? (await readFile(session.finalGifPath)).toString("base64") : undefined;
-    const originals = await Promise.all(
-      session.shots
-        .filter((shot) => shot.filePath)
-        .map(async (shot) => ({
-          name: `photo-${String(shot.shotIndex + 1).padStart(2, "0")}.jpg`,
-          base64: (await readFile(shot.filePath!, null)).toString("base64")
-        }))
-    );
-
-    const response = await fetch(`${this.baseUrl}/api/sessions`, {
+    const initResponse = await fetch(`${this.baseUrl}/api/sessions/init`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -31,17 +20,36 @@ export class CloudflareUploadService {
       body: JSON.stringify({
         sessionId: session.id,
         eventName,
-        recipientEmail: session.recipientEmail,
-        stripBase64,
-        gifBase64,
-        originals
+        recipientEmail: session.recipientEmail
       })
     });
+    if (!initResponse.ok) throw new Error(`Cloudflare gagal membuat sesi: ${initResponse.status}`);
 
-    if (!response.ok) {
-      throw new Error(`Cloudflare upload gagal: ${response.status}`);
+    const files: Array<{ name: string; path: string }> = [
+      { name: "strip.jpg", path: session.finalStripPath }
+    ];
+    if (session.finalGifPath) files.push({ name: "slideshow.gif", path: session.finalGifPath });
+    for (const shot of session.shots) {
+      if (shot.filePath) files.push({ name: `photo-${String(shot.shotIndex + 1).padStart(2, "0")}.jpg`, path: shot.filePath });
     }
 
-    return response.json() as Promise<{ folderUrl: string }>;
+    for (const file of files) {
+      const bytes = await readFile(file.path);
+      const uploadResponse = await fetch(`${this.baseUrl}/api/sessions/${encodeURIComponent(session.id)}/files/${file.name}`, {
+        method: "PUT",
+        headers: { "Content-Type": file.name.endsWith(".gif") ? "image/gif" : "image/jpeg" },
+        body: new Uint8Array(bytes)
+      });
+      if (!uploadResponse.ok) throw new Error(`Cloudflare gagal upload ${file.name}: ${uploadResponse.status}`);
+    }
+
+    const originalNames = files.filter((file) => file.name.startsWith("photo-")).map((file) => file.name);
+    const completeResponse = await fetch(`${this.baseUrl}/api/sessions/${encodeURIComponent(session.id)}/complete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ originals: originalNames, gif: Boolean(session.finalGifPath) })
+    });
+    if (!completeResponse.ok) throw new Error(`Cloudflare gagal menyelesaikan sesi: ${completeResponse.status}`);
+    return completeResponse.json() as Promise<{ folderUrl: string }>;
   }
 }

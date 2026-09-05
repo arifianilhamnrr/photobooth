@@ -81,7 +81,20 @@ async function renderGif({ shots, filterId, outputPath }) {
     if (filterId === 'warm') image = image.modulate({ saturation: 1.15, brightness: 1.02 }).tint('#f2c7a5');
     if (filterId === 'cool') image = image.modulate({ saturation: 0.92, brightness: 1.01 }).tint('#aec8ff');
     if (filterId === 'contrast') image = image.linear(1.16, -(128 * 1.16) + 128).modulate({ saturation: 1.1, brightness: 0.98 });
-    frameBuffers.push(await image.removeAlpha().raw().toBuffer());
+    const rendered = await image.removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    if (rendered.info.channels === 1) {
+      const rgb = Buffer.alloc(rendered.data.length * 3);
+      for (let index = 0; index < rendered.data.length; index += 1) {
+        const value = rendered.data[index];
+        const offset = index * 3;
+        rgb[offset] = value;
+        rgb[offset + 1] = value;
+        rgb[offset + 2] = value;
+      }
+      frameBuffers.push(rgb);
+    } else {
+      frameBuffers.push(rendered.data);
+    }
   }
 
   await sharp(Buffer.concat(frameBuffers), {

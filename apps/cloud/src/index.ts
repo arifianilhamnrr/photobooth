@@ -10,6 +10,55 @@ const app = new Hono<{ Bindings: Bindings }>();
 
 app.get("/health", (c) => c.json({ ok: true }));
 
+app.post("/api/sessions/init", async (c) => {
+  const body = await c.req.json<{ sessionId: string; eventName: string; recipientEmail?: string }>();
+  const createdAt = new Date().toISOString();
+  const publicUrl = `${c.env.PUBLIC_BASE_URL}/s/${body.sessionId}`;
+  await c.env.PHOTOBOOTH_DB.prepare(
+    `INSERT OR REPLACE INTO sessions (id, event_name, created_at, recipient_email, strip_key, strip_url, photo_count, status, metadata_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    body.sessionId,
+    body.eventName,
+    createdAt,
+    body.recipientEmail ?? null,
+    `sessions/${body.sessionId}/strip.jpg`,
+    publicUrl,
+    0,
+    "uploading",
+    JSON.stringify({ originals: [], gif: false })
+  ).run();
+  return c.json({ sessionId: body.sessionId, folderUrl: publicUrl });
+});
+
+app.put("/api/sessions/:sessionId/files/:fileName", async (c) => {
+  const sessionId = c.req.param("sessionId");
+  const fileName = c.req.param("fileName");
+  if (!/^(strip\.jpg|slideshow\.gif|photo-\d{2}\.jpg)$/.test(fileName)) {
+    return c.json({ error: "Invalid file name" }, 400);
+  }
+  if (!c.req.raw.body) return c.json({ error: "Missing file body" }, 400);
+  const contentType = fileName.endsWith(".gif") ? "image/gif" : "image/jpeg";
+  await c.env.PHOTOBOOTH_BUCKET.put(`sessions/${sessionId}/${fileName}`, c.req.raw.body, {
+    httpMetadata: { contentType }
+  });
+  return c.json({ ok: true, fileName });
+});
+
+app.post("/api/sessions/:sessionId/complete", async (c) => {
+  const sessionId = c.req.param("sessionId");
+  const body = await c.req.json<{ originals: string[]; gif: boolean }>();
+  await c.env.PHOTOBOOTH_DB.prepare(
+    "UPDATE sessions SET photo_count = ?, status = ?, metadata_json = ? WHERE id = ?"
+  ).bind(
+    body.originals.length,
+    "published",
+    JSON.stringify({ originals: body.originals, gif: body.gif, email: { status: "pending_desktop_delivery" } }),
+    sessionId
+  ).run();
+  return c.json({ sessionId, folderUrl: `${c.env.PUBLIC_BASE_URL}/s/${sessionId}` });
+});
+
 app.post("/api/sessions", async (c) => {
   const body = await c.req.json<{
     sessionId: string;
