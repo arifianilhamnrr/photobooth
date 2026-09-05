@@ -186,10 +186,9 @@ app.get("/s/:sessionId", async (c) => {
         .donation h2 { margin: 0; font-size: 28px; }
         .donation p { margin: 10px auto 18px; max-width: 36ch; }
         .qris { width: min(76vw, 300px); margin: 0 auto; padding: 10px; border-radius: 16px; background: white; box-shadow: none; }
-        .donation-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+        .donation-actions { display: grid; margin-top: 20px; }
         .donation-actions button { min-height: 48px; padding: 0 14px; border: 0; border-radius: 12px; font: inherit; font-weight: 700; cursor: pointer; }
         .continue-download { background: #ff7048; color: #15110f; }
-        .skip-download { background: #2b2f33; color: #f2f1ed; }
         .donation-note { display: block; margin-top: 12px; color: #83898d; font-size: 12px; }
       </style>
     </head>
@@ -212,8 +211,7 @@ app.get("/s/:sessionId", async (c) => {
           <p>Kalau berkenan, kamu bisa berdonasi seikhlasnya lewat QRIS. Download tetap gratis.</p>
           <img class="qris" src="${c.env.PUBLIC_BASE_URL}/qris.svg" alt="QRIS donasi seikhlasnya" />
           <div class="donation-actions">
-            <button class="skip-download" type="button">Lewati & download</button>
-            <button class="continue-download" type="button">Lanjut download</button>
+            <button class="continue-download" type="button">Download</button>
           </div>
           <small class="donation-note">Tidak ada nominal minimum dan tidak ada verifikasi pembayaran.</small>
         </div>
@@ -235,7 +233,6 @@ app.get("/s/:sessionId", async (c) => {
           if (url) window.location.href = url;
         }
         dialog.querySelector('.continue-download').addEventListener('click', continueDownload);
-        dialog.querySelector('.skip-download').addEventListener('click', continueDownload);
         dialog.addEventListener('click', (event) => {
           if (event.target === dialog) dialog.close();
         });
