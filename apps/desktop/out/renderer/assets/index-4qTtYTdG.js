@@ -14717,7 +14717,10 @@ function App() {
   const [session, setSession] = reactExports.useState(null);
   const [countdown, setCountdown] = reactExports.useState(3);
   const [captureIndex, setCaptureIndex] = reactExports.useState(0);
+  const [lastCapturedIndex, setLastCapturedIndex] = reactExports.useState(null);
   const [replaceIndex, setReplaceIndex] = reactExports.useState(null);
+  const [retakeCountRecorded, setRetakeCountRecorded] = reactExports.useState(false);
+  const [shutterFlash, setShutterFlash] = reactExports.useState(false);
   const [queueStatus, setQueueStatus] = reactExports.useState("Siap memulai sesi baru");
   const [qrUrl, setQrUrl] = reactExports.useState("");
   const [operatorOpen, setOperatorOpen] = reactExports.useState(false);
@@ -14783,24 +14786,18 @@ function App() {
         setCountdown(settings.countdownSeconds);
         return;
       }
-      void window.photobooth.sessions.captureShot({ sessionId: session.id, shotIndex: targetIndex, dataUrl: dataUrl ?? void 0 }).then((nextSession) => {
+      setShutterFlash(true);
+      window.setTimeout(() => setShutterFlash(false), 140);
+      const countAsRetake = replaceIndex !== null && !retakeCountRecorded;
+      void window.photobooth.sessions.captureShot({ sessionId: session.id, shotIndex: targetIndex, dataUrl: dataUrl ?? void 0, countAsRetake }).then((nextSession) => {
         setSession(nextSession);
         updateSessionCollection(nextSession);
         setCountdown(settings.countdownSeconds);
         setCaptureError("");
-        if (replaceIndex !== null) {
-          setReplaceIndex(null);
-          setQueueStatus(`Foto ${targetIndex + 1} berhasil diulang.`);
-          setStep("review");
-          return;
-        }
-        if (targetIndex + 1 >= template.captureCount) {
-          setQueueStatus("Semua foto sudah diambil. Cek hasil strip kamu.");
-          setStep("review");
-          return;
-        }
-        setCaptureIndex(targetIndex + 1);
-        setQueueStatus(`Foto ${targetIndex + 1} tersimpan. Ganti gaya untuk foto berikutnya.`);
+        if (countAsRetake) setRetakeCountRecorded(true);
+        setLastCapturedIndex(targetIndex);
+        setQueueStatus(`Cek hasil foto ${targetIndex + 1} sebelum lanjut.`);
+        setStep("shot-review");
       }).catch((error) => {
         const message = error instanceof Error ? error.message : "Gagal mengambil foto dari kamera.";
         setCaptureError(message);
@@ -14928,8 +14925,10 @@ function App() {
     setSession(nextSession);
     updateSessionCollection(nextSession);
     setCaptureIndex(0);
+    setLastCapturedIndex(null);
     setCountdown(settings.countdownSeconds);
     setReplaceIndex(null);
+    setRetakeCountRecorded(false);
     setQrUrl("");
     setRecipientEmail("");
     setEmailError("");
@@ -14949,8 +14948,40 @@ function App() {
   }
   function requestRetake(shotIndex) {
     setReplaceIndex(shotIndex);
+    setRetakeCountRecorded(false);
     setCountdown(settings.countdownSeconds);
     setQueueStatus(`Mengulang foto ${shotIndex + 1}.`);
+    setStep("capture");
+  }
+  function acceptCapturedShot() {
+    if (lastCapturedIndex === null) return;
+    if (replaceIndex !== null) {
+      setReplaceIndex(null);
+      setRetakeCountRecorded(false);
+      setLastCapturedIndex(null);
+      setQueueStatus(`Foto ${lastCapturedIndex + 1} berhasil diganti.`);
+      setStep("review");
+      return;
+    }
+    if (lastCapturedIndex + 1 >= template.captureCount) {
+      setLastCapturedIndex(null);
+      setQueueStatus("Semua foto sudah diambil. Cek hasil strip kamu.");
+      setStep("review");
+      return;
+    }
+    const nextIndex = lastCapturedIndex + 1;
+    setCaptureIndex(nextIndex);
+    setLastCapturedIndex(null);
+    setCountdown(settings.countdownSeconds);
+    setQueueStatus(`Siap untuk foto ${nextIndex + 1}.`);
+    setStep("capture");
+  }
+  function rejectCapturedShot() {
+    const targetIndex = lastCapturedIndex ?? replaceIndex ?? captureIndex;
+    setCaptureIndex(targetIndex);
+    setLastCapturedIndex(null);
+    setCountdown(settings.countdownSeconds);
+    setQueueStatus(`Foto ${targetIndex + 1} dibatalkan. Ambil ulang sekarang.`);
     setStep("capture");
   }
   function finishReview() {
@@ -14987,6 +15018,7 @@ function App() {
     setSession(null);
     setQrUrl("");
     setReplaceIndex(null);
+    setRetakeCountRecorded(false);
     setQueueStatus("Siap memulai sesi baru");
     setStep("welcome");
   }
@@ -15182,6 +15214,29 @@ function App() {
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button full", onClick: () => setStep("ready"), children: "Kembali ke kamera" })
       ] })
     ] }),
+    step === "shot-review" && session && lastCapturedIndex !== null && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "shot-review-layout screen-card", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "single-shot-preview", children: shots.find((shot) => shot.shotIndex === lastCapturedIndex)?.dataUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "img",
+        {
+          src: shots.find((shot) => shot.shotIndex === lastCapturedIndex)?.dataUrl,
+          alt: `Preview foto ${lastCapturedIndex + 1}`,
+          style: { filter: filter.cssFilter }
+        }
+      ) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "camera-empty-state", children: /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Preview belum tersedia" }) }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "shot-review-panel", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "eyebrow", children: [
+          "CEK FOTO ",
+          lastCapturedIndex + 1
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "Mau pakai foto ini?" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Kalau sudah pas, lanjut ke pose berikutnya. Kalau belum, batalkan dan ambil ulang foto yang sama." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "shot-review-progress", children: Array.from({ length: template.captureCount }, (_, index) => /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: index <= lastCapturedIndex ? "filled" : "", children: index + 1 }, index)) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "shot-review-actions", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", onClick: rejectCapturedShot, children: "Batal & foto ulang" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: acceptCapturedShot, children: replaceIndex !== null || lastCapturedIndex + 1 >= template.captureCount ? "Pakai foto" : "Pakai & lanjut" })
+        ] })
+      ] })
+    ] }),
     step === "review" && session && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "review-layout screen-card", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "result-board", children: session.finalStripDataUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx(FinalStripImage, { dataUrl: session.finalStripDataUrl }) : /* @__PURE__ */ jsxRuntimeExports.jsx(StripShowcase, { template, shots, filterCss: filter.cssFilter }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "review-panel", children: [
@@ -15268,8 +15323,6 @@ function App() {
           session.recipientEmail ? `Kami juga kirim link ini ke ${session.recipientEmail}.` : "Link ini tetap bisa dibuka siapa pun yang punya QR-nya."
         ] }),
         qrUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx("img", { className: "qr-image", src: qrUrl, alt: "QR untuk folder Google Drive sesi photobooth" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "qr-placeholder" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "operator-help", children: driveStatus.mode === "authenticated" ? "QR ini menuju folder Google Drive asli." : "QR ini akan menuju Cloudflare domain atau fallback yang aktif." }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "operator-help", children: cloudStatus.mode === "configured" ? `Cloudflare aktif di ${cloudStatus.baseUrl}. Publish akan diarahkan ke sana lebih dulu.` : "Cloudflare belum aktif. Publish akan memakai fallback lain." }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "panel-footer compact", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "footer-note", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Hasil siap diambil" }),
@@ -15410,7 +15463,8 @@ function App() {
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button full", onClick: () => void resetStore(), children: "Reset demo data" })
-    ] }) })
+    ] }) }),
+    shutterFlash && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "shutter-flash", "aria-hidden": "true" })
   ] });
 }
 function sampleShots(count) {

@@ -68,6 +68,7 @@ interface CaptureShotInput {
   sessionId: string;
   shotIndex: number;
   dataUrl?: string;
+  countAsRetake?: boolean;
 }
 
 interface PublishSessionInput {
@@ -308,7 +309,7 @@ app.whenReady().then(() => {
     const nextShot: StoredShot = {
       shotIndex: input.shotIndex,
       revision: nextRevision,
-      attemptsUsed: Math.max(0, nextRevision - 1),
+      attemptsUsed: (existing?.attemptsUsed ?? 0) + (input.countAsRetake ? 1 : 0),
       color: buildShotColor(input.shotIndex, nextRevision),
       dataUrl,
       filePath,

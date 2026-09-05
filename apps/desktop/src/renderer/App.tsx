@@ -22,7 +22,7 @@ import {
   type TemplateSlot
 } from "@photobooth/domain";
 
-type Step = "welcome" | "template" | "ready" | "capture" | "review" | "email" | "saving" | "result";
+type Step = "welcome" | "template" | "ready" | "capture" | "shot-review" | "review" | "email" | "saving" | "result";
 
 const CAPTURE_INTERVAL_MS = 900;
 
@@ -49,7 +49,10 @@ export default function App() {
   const [session, setSession] = useState<StoredSession | null>(null);
   const [countdown, setCountdown] = useState(3);
   const [captureIndex, setCaptureIndex] = useState(0);
+  const [lastCapturedIndex, setLastCapturedIndex] = useState<number | null>(null);
   const [replaceIndex, setReplaceIndex] = useState<number | null>(null);
+  const [retakeCountRecorded, setRetakeCountRecorded] = useState(false);
+  const [shutterFlash, setShutterFlash] = useState(false);
   const [queueStatus, setQueueStatus] = useState("Siap memulai sesi baru");
   const [qrUrl, setQrUrl] = useState("");
   const [operatorOpen, setOperatorOpen] = useState(false);
@@ -124,28 +127,19 @@ export default function App() {
         return;
       }
 
-      void window.photobooth.sessions.captureShot({ sessionId: session.id, shotIndex: targetIndex, dataUrl: dataUrl ?? undefined })
+      setShutterFlash(true);
+      window.setTimeout(() => setShutterFlash(false), 140);
+      const countAsRetake = replaceIndex !== null && !retakeCountRecorded;
+      void window.photobooth.sessions.captureShot({ sessionId: session.id, shotIndex: targetIndex, dataUrl: dataUrl ?? undefined, countAsRetake })
         .then((nextSession) => {
           setSession(nextSession);
           updateSessionCollection(nextSession);
           setCountdown(settings.countdownSeconds);
           setCaptureError("");
-
-          if (replaceIndex !== null) {
-            setReplaceIndex(null);
-            setQueueStatus(`Foto ${targetIndex + 1} berhasil diulang.`);
-            setStep("review");
-            return;
-          }
-
-          if (targetIndex + 1 >= template.captureCount) {
-            setQueueStatus("Semua foto sudah diambil. Cek hasil strip kamu.");
-            setStep("review");
-            return;
-          }
-
-          setCaptureIndex(targetIndex + 1);
-          setQueueStatus(`Foto ${targetIndex + 1} tersimpan. Ganti gaya untuk foto berikutnya.`);
+          if (countAsRetake) setRetakeCountRecorded(true);
+          setLastCapturedIndex(targetIndex);
+          setQueueStatus(`Cek hasil foto ${targetIndex + 1} sebelum lanjut.`);
+          setStep("shot-review");
         })
         .catch((error: unknown) => {
           const message = error instanceof Error ? error.message : "Gagal mengambil foto dari kamera.";
@@ -289,8 +283,10 @@ export default function App() {
     setSession(nextSession);
     updateSessionCollection(nextSession);
     setCaptureIndex(0);
+    setLastCapturedIndex(null);
     setCountdown(settings.countdownSeconds);
     setReplaceIndex(null);
+    setRetakeCountRecorded(false);
     setQrUrl("");
     setRecipientEmail("");
     setEmailError("");
@@ -312,8 +308,44 @@ export default function App() {
 
   function requestRetake(shotIndex: number) {
     setReplaceIndex(shotIndex);
+    setRetakeCountRecorded(false);
     setCountdown(settings.countdownSeconds);
     setQueueStatus(`Mengulang foto ${shotIndex + 1}.`);
+    setStep("capture");
+  }
+
+  function acceptCapturedShot() {
+    if (lastCapturedIndex === null) return;
+    if (replaceIndex !== null) {
+      setReplaceIndex(null);
+      setRetakeCountRecorded(false);
+      setLastCapturedIndex(null);
+      setQueueStatus(`Foto ${lastCapturedIndex + 1} berhasil diganti.`);
+      setStep("review");
+      return;
+    }
+
+    if (lastCapturedIndex + 1 >= template.captureCount) {
+      setLastCapturedIndex(null);
+      setQueueStatus("Semua foto sudah diambil. Cek hasil strip kamu.");
+      setStep("review");
+      return;
+    }
+
+    const nextIndex = lastCapturedIndex + 1;
+    setCaptureIndex(nextIndex);
+    setLastCapturedIndex(null);
+    setCountdown(settings.countdownSeconds);
+    setQueueStatus(`Siap untuk foto ${nextIndex + 1}.`);
+    setStep("capture");
+  }
+
+  function rejectCapturedShot() {
+    const targetIndex = lastCapturedIndex ?? replaceIndex ?? captureIndex;
+    setCaptureIndex(targetIndex);
+    setLastCapturedIndex(null);
+    setCountdown(settings.countdownSeconds);
+    setQueueStatus(`Foto ${targetIndex + 1} dibatalkan. Ambil ulang sekarang.`);
     setStep("capture");
   }
 
@@ -353,6 +385,7 @@ export default function App() {
     setSession(null);
     setQrUrl("");
     setReplaceIndex(null);
+    setRetakeCountRecorded(false);
     setQueueStatus("Siap memulai sesi baru");
     setStep("welcome");
   }
@@ -558,6 +591,38 @@ export default function App() {
         </section>
       )}
 
+      {step === "shot-review" && session && lastCapturedIndex !== null && (
+        <section className="shot-review-layout screen-card">
+          <div className="single-shot-preview">
+            {shots.find((shot) => shot.shotIndex === lastCapturedIndex)?.dataUrl ? (
+              <img
+                src={shots.find((shot) => shot.shotIndex === lastCapturedIndex)?.dataUrl}
+                alt={`Preview foto ${lastCapturedIndex + 1}`}
+                style={{ filter: filter.cssFilter }}
+              />
+            ) : (
+              <div className="camera-empty-state"><strong>Preview belum tersedia</strong></div>
+            )}
+          </div>
+          <div className="shot-review-panel">
+            <p className="eyebrow">CEK FOTO {lastCapturedIndex + 1}</p>
+            <h2>Mau pakai foto ini?</h2>
+            <p className="body small">Kalau sudah pas, lanjut ke pose berikutnya. Kalau belum, batalkan dan ambil ulang foto yang sama.</p>
+            <div className="shot-review-progress">
+              {Array.from({ length: template.captureCount }, (_, index) => (
+                <span key={index} className={index <= lastCapturedIndex ? "filled" : ""}>{index + 1}</span>
+              ))}
+            </div>
+            <div className="shot-review-actions">
+              <button className="secondary-button" onClick={rejectCapturedShot}>Batal & foto ulang</button>
+              <button className="primary-button" onClick={acceptCapturedShot}>
+                {replaceIndex !== null || lastCapturedIndex + 1 >= template.captureCount ? "Pakai foto" : "Pakai & lanjut"}
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
       {step === "review" && session && (
         <section className="review-layout screen-card">
           <div className="result-board">
@@ -654,8 +719,6 @@ export default function App() {
             <h2>Scan untuk ambil fotomu.</h2>
             <p className="body small">Link hasil sesi {session.id} sudah siap. {session.recipientEmail ? `Kami juga kirim link ini ke ${session.recipientEmail}.` : "Link ini tetap bisa dibuka siapa pun yang punya QR-nya."}</p>
             {qrUrl ? <img className="qr-image" src={qrUrl} alt="QR untuk folder Google Drive sesi photobooth" /> : <div className="qr-placeholder" />}
-            <p className="operator-help">{driveStatus.mode === "authenticated" ? "QR ini menuju folder Google Drive asli." : "QR ini akan menuju Cloudflare domain atau fallback yang aktif."}</p>
-            <p className="operator-help">{cloudStatus.mode === "configured" ? `Cloudflare aktif di ${cloudStatus.baseUrl}. Publish akan diarahkan ke sana lebih dulu.` : "Cloudflare belum aktif. Publish akan memakai fallback lain."}</p>
             <div className="panel-footer compact">
               <div className="footer-note">
                 <strong>Hasil siap diambil</strong>
@@ -818,6 +881,7 @@ export default function App() {
           </aside>
         </div>
       )}
+      {shutterFlash && <div className="shutter-flash" aria-hidden="true" />}
     </main>
   );
 }

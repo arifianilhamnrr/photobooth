@@ -97,6 +97,7 @@ app.get("/s/:sessionId", async (c) => {
         img { width: 100%; border-radius: 24px; box-shadow: 0 24px 80px rgba(0,0,0,.35); }
         p { color: #b2b4b3; line-height: 1.5; }
         a { color: #ff7048; }
+        .download { display: inline-block; margin: 20px 0 8px; padding: 14px 20px; border-radius: 12px; background: #ff7048; color: #15110f; text-decoration: none; font-weight: 700; }
       </style>
     </head>
     <body>
@@ -104,8 +105,9 @@ app.get("/s/:sessionId", async (c) => {
         <h1>Hasil photobooth kamu siap</h1>
         <p>${session.event_name} · ${session.id}</p>
         ${imageUrl ? `<img src="${imageUrl}" alt="Hasil strip photobooth" />` : "<p>Strip belum tersedia.</p>"}
+        ${imageUrl ? `<a class="download" href="${c.env.PUBLIC_BASE_URL}/download/${session.id}/strip.jpg">Download foto</a>` : ""}
         ${session.recipient_email ? `<p>Link ini juga dikirim ke ${session.recipient_email}.</p>` : ""}
-        <p>Kamu bisa tekan lama atau simpan gambar ini ke perangkatmu.</p>
+        <p>Gunakan tombol download untuk menyimpan hasil ke perangkatmu.</p>
       </main>
     </body>
   </html>`);
@@ -119,6 +121,18 @@ app.get("/assets/:sessionId/:fileName", async (c) => {
   const headers = new Headers();
   object.writeHttpMetadata(headers);
   headers.set("cache-control", "public, max-age=3600");
+  return new Response(object.body, { headers });
+});
+
+app.get("/download/:sessionId/:fileName", async (c) => {
+  const sessionId = c.req.param("sessionId");
+  const fileName = c.req.param("fileName");
+  const object = await c.env.PHOTOBOOTH_BUCKET.get(`sessions/${sessionId}/${fileName}`);
+  if (!object) return c.notFound();
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set("content-disposition", `attachment; filename="photobooth-${sessionId}.jpg"`);
+  headers.set("cache-control", "private, max-age=0");
   return new Response(object.body, { headers });
 });
 

@@ -28,7 +28,7 @@ contextBridge.exposeInMainWorld("photobooth", {
   sessions: {
     create: (input: { templateId: string; filterId: StoredSession["filterId"] }) => ipcRenderer.invoke("session:create", input) as Promise<StoredSession>,
     updateConfig: (input: { sessionId: string; templateId: string; filterId: StoredSession["filterId"] }) => ipcRenderer.invoke("session:update-config", input) as Promise<StoredSession>,
-    captureShot: (input: { sessionId: string; shotIndex: number; dataUrl?: string }) => ipcRenderer.invoke("session:capture-shot", input) as Promise<StoredSession>,
+    captureShot: (input: { sessionId: string; shotIndex: number; dataUrl?: string; countAsRetake?: boolean }) => ipcRenderer.invoke("session:capture-shot", input) as Promise<StoredSession>,
     publish: (input: { sessionId: string; recipientEmail: string }) => ipcRenderer.invoke("session:publish", input) as Promise<StoredSession>
   },
   queue: {
@@ -68,7 +68,7 @@ declare global {
       sessions: {
         create(input: { templateId: string; filterId: StoredSession["filterId"] }): Promise<StoredSession>;
         updateConfig(input: { sessionId: string; templateId: string; filterId: StoredSession["filterId"] }): Promise<StoredSession>;
-        captureShot(input: { sessionId: string; shotIndex: number; dataUrl?: string }): Promise<StoredSession>;
+        captureShot(input: { sessionId: string; shotIndex: number; dataUrl?: string; countAsRetake?: boolean }): Promise<StoredSession>;
         publish(input: { sessionId: string; recipientEmail: string }): Promise<StoredSession>;
       };
       queue: {
