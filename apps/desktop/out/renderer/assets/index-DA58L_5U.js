@@ -14978,10 +14978,6 @@ function App() {
       });
       streamRef.current = stream;
       const [track] = stream.getVideoTracks();
-      const capabilities = track?.getCapabilities();
-      if (capabilities?.focusMode?.includes("continuous")) {
-        await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] }).catch(() => void 0);
-      }
       const activeDeviceId = track?.getSettings().deviceId;
       setCameraLabel(track?.label || "Kamera aktif");
       setCameraReady(true);
