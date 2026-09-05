@@ -403,6 +403,40 @@ button {
   transform: scaleX(-1);
 }
 
+.live-camera-shell.waiting .live-camera {
+  opacity: 0;
+}
+
+.camera-empty-state {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: 36px;
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 40%, rgba(255, 112, 72, 0.13), transparent 28%),
+    linear-gradient(180deg, #24282b, #111315);
+}
+
+.camera-empty-state span {
+  max-width: 40ch;
+  color: #aab0b4;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.camera-empty-mark {
+  width: 72px;
+  height: 54px;
+  margin-bottom: 8px;
+  border: 2px solid #697076;
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 14px #171a1c;
+}
+
 .live-camera-overlay {
   position: absolute;
   inset: 0;
@@ -542,6 +576,23 @@ button {
   border-radius: 16px;
   border: 1px solid #34383c;
   background: #121416;
+}
+
+.camera-select-label {
+  margin: 0 0 7px;
+  color: #9ea5a9;
+  font-size: 13px;
+}
+
+.camera-source-select {
+  width: 100%;
+  min-height: 48px;
+  margin-bottom: 14px;
+  padding: 0 14px;
+  border: 1px solid #41464b;
+  border-radius: 12px;
+  background: #111315;
+  color: #f2f1ed;
 }
 
 .camera-status-card strong,

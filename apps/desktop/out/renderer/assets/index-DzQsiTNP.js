@@ -14725,6 +14725,7 @@ function App() {
   const [cameraReady, setCameraReady] = reactExports.useState(false);
   const [cameraLabel, setCameraLabel] = reactExports.useState("Kamera belum dipilih");
   const [cameraStatusMessage, setCameraStatusMessage] = reactExports.useState("Sedang menyiapkan kamera.");
+  const [captureError, setCaptureError] = reactExports.useState("");
   const [recipientEmail, setRecipientEmail] = reactExports.useState("");
   const [emailError, setEmailError] = reactExports.useState("");
   const [kioskEnabled, setKioskEnabled] = reactExports.useState(true);
@@ -14743,6 +14744,7 @@ function App() {
   const editorSlot = editorTemplate.slots[editorSlotIndex] ?? editorTemplate.slots[0];
   const filter = reactExports.useMemo(() => filters.find((item) => item.id === (session?.filterId ?? filterId)) ?? filters[0], [filterId, session?.filterId]);
   const shots = session?.shots ?? [];
+  const cameraActive = step === "ready" || step === "capture";
   reactExports.useEffect(() => {
     window.photobooth.system.ping().then(() => setSystemStatus("Desktop siap dipakai")).catch(() => setSystemStatus("Main process tidak merespons"));
     void refreshSnapshot();
@@ -14757,6 +14759,13 @@ function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
   reactExports.useEffect(() => {
+    const handleDeviceChange = () => {
+      void refreshBrowserCameraSources();
+    };
+    navigator.mediaDevices?.addEventListener("devicechange", handleDeviceChange);
+    return () => navigator.mediaDevices?.removeEventListener("devicechange", handleDeviceChange);
+  }, []);
+  reactExports.useEffect(() => {
     if (step !== "capture" || !session) return;
     if (countdown > 1) {
       const timer2 = window.setTimeout(() => setCountdown((value) => value - 1), CAPTURE_INTERVAL_MS);
@@ -14764,10 +14773,19 @@ function App() {
     }
     const timer = window.setTimeout(() => {
       const targetIndex = replaceIndex ?? captureIndex;
-      void window.photobooth.sessions.captureShot({ sessionId: session.id, shotIndex: targetIndex, dataUrl: captureFrame() ?? void 0 }).then((nextSession) => {
+      const dataUrl = captureFrame();
+      if (!selectedCameraSourceId.startsWith("gphoto:") && !dataUrl) {
+        setCaptureError("Frame kamera tidak tersedia. Kamera mungkin terputus.");
+        setCameraStatusMessage("Kamera terputus saat mengambil foto. Pilih kamera lagi atau kembali.");
+        setStep("ready");
+        setCountdown(settings.countdownSeconds);
+        return;
+      }
+      void window.photobooth.sessions.captureShot({ sessionId: session.id, shotIndex: targetIndex, dataUrl: dataUrl ?? void 0 }).then((nextSession) => {
         setSession(nextSession);
         updateSessionCollection(nextSession);
         setCountdown(settings.countdownSeconds);
+        setCaptureError("");
         if (replaceIndex !== null) {
           setReplaceIndex(null);
           setQueueStatus(`Foto ${targetIndex + 1} berhasil diulang.`);
@@ -14781,20 +14799,25 @@ function App() {
         }
         setCaptureIndex(targetIndex + 1);
         setQueueStatus(`Foto ${targetIndex + 1} tersimpan. Ganti gaya untuk foto berikutnya.`);
+      }).catch((error) => {
+        const message = error instanceof Error ? error.message : "Gagal mengambil foto dari kamera.";
+        setCaptureError(message);
+        setCameraStatusMessage("Pengambilan foto gagal. Periksa koneksi kamera lalu coba lagi.");
+        setQueueStatus("Foto gagal diambil. Kamu bisa memilih ulang kamera atau kembali.");
+        setCountdown(settings.countdownSeconds);
+        setStep("ready");
       });
     }, CAPTURE_INTERVAL_MS);
     return () => clearTimeout(timer);
   }, [captureIndex, countdown, replaceIndex, session, settings.countdownSeconds, step, template.captureCount]);
   reactExports.useEffect(() => {
-    if (step !== "ready" && step !== "capture") {
+    if (!cameraActive) {
       stopCamera();
       return;
     }
-    void startCamera();
-    return () => {
-      if (step !== "capture") stopCamera();
-    };
-  }, [step]);
+    void startCamera(selectedCameraSourceId);
+    return stopCamera;
+  }, [cameraActive, selectedCameraSourceId]);
   reactExports.useEffect(() => {
     if (step !== "result" || !session?.driveUrl) return;
     void QRCode.toDataURL(session.driveUrl, {
@@ -14813,28 +14836,44 @@ function App() {
     setDriveStatus(snapshot.driveStatus);
     setCloudStatus(snapshot.cloudStatus);
   }
-  async function startCamera() {
-    if (selectedCameraSourceId.startsWith("gphoto:")) {
+  async function refreshBrowserCameraSources() {
+    if (!navigator.mediaDevices) return;
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const browserDevices = devices.filter((device) => device.kind === "videoinput").map((device, index) => ({ id: `webcam:${device.deviceId}`, label: device.label || `Kamera ${index + 1}` }));
+    const nativeSources = await window.photobooth.camera.listSources();
+    setCameraSources([
+      ...browserDevices,
+      ...nativeSources.filter((source) => source.id.startsWith("gphoto:"))
+    ]);
+  }
+  async function startCamera(sourceId = selectedCameraSourceId) {
+    if (sourceId.startsWith("gphoto:")) {
       stopCamera();
-      const source = cameraSources.find((item) => item.id === selectedCameraSourceId);
+      const source = cameraSources.find((item) => item.id === sourceId);
       setCameraLabel(source?.label ?? "Canon EOS");
       setCameraReady(false);
       setCameraError("Preview live Canon belum aktif. Capture akan diambil langsung dari kamera.");
       setCameraStatusMessage("Canon siap dipakai untuk jepret langsung, tetapi preview live belum tersedia.");
       return;
     }
-    if (streamRef.current || !videoRef.current) return;
+    if (!videoRef.current) return;
+    stopCamera();
+    setCameraError("");
+    setCameraStatusMessage("Menghubungkan kamera.");
     try {
+      const browserDeviceId = sourceId.startsWith("webcam:") ? sourceId.slice("webcam:".length) : "default";
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          facingMode: "user"
+          ...browserDeviceId !== "default" ? { deviceId: { exact: browserDeviceId } } : {},
+          width: { ideal: 2880 },
+          height: { ideal: 1440 },
+          frameRate: { ideal: 30 }
         },
         audio: false
       });
       streamRef.current = stream;
       const [track] = stream.getVideoTracks();
+      const activeDeviceId = track?.getSettings().deviceId;
       setCameraLabel(track?.label || "Kamera aktif");
       setCameraReady(true);
       setCameraError("");
@@ -14842,6 +14881,16 @@ function App() {
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play().catch(() => void 0);
+      }
+      const browserDevices = (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind === "videoinput").map((device, index) => ({ id: `webcam:${device.deviceId}`, label: device.label || `Kamera ${index + 1}` }));
+      setCameraSources((current) => [
+        ...browserDevices,
+        ...current.filter((source) => source.id.startsWith("gphoto:"))
+      ]);
+      if (activeDeviceId && sourceId === "webcam:default") {
+        const activeSourceId = `webcam:${activeDeviceId}`;
+        setSelectedCameraSourceId(activeSourceId);
+        await window.photobooth.camera.selectSource(activeSourceId);
       }
     } catch (error) {
       setCameraReady(false);
@@ -14946,10 +14995,7 @@ function App() {
   async function changeCameraSource(sourceId) {
     await window.photobooth.camera.selectSource(sourceId);
     setSelectedCameraSourceId(sourceId);
-    const sources = await window.photobooth.camera.listSources();
-    setCameraSources(sources);
-    stopCamera();
-    if (step === "ready" || step === "capture") void startCamera();
+    setCaptureError("");
   }
   async function resetStore() {
     await window.photobooth.debug.reset();
@@ -15076,6 +15122,17 @@ function App() {
             ] })
           ] })
         ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "camera-select-label", htmlFor: "guest-camera-source", children: "Pilih kamera" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "select",
+          {
+            id: "guest-camera-source",
+            className: "camera-source-select",
+            value: selectedCameraSourceId,
+            onChange: (event) => void changeCameraSource(event.target.value),
+            children: cameraSources.map((source) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: source.id, children: source.label }, source.id))
+          }
+        ),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "camera-status-card", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: cameraReady ? "Kamera siap" : selectedCameraSourceId.startsWith("gphoto:") ? "Canon mode" : "Kamera belum siap" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: cameraStatusMessage })
@@ -15083,6 +15140,10 @@ function App() {
         !cameraReady && !selectedCameraSourceId.startsWith("gphoto:") && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "inline-warning", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Kamera belum aktif." }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Cek izin kamera atau buka operator untuk pilih source lain." })
+        ] }),
+        captureError && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "inline-warning", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Foto belum berhasil." }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: captureError })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "dual-actions", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", onClick: () => setStep("template"), children: "Kembali" }),
@@ -15368,17 +15429,6 @@ function ShotRail({ shots, activeIndex }) {
     ] }, index);
   }) });
 }
-function MockCamera({ filterCss, label }) {
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mock-camera", style: { filter: filterCss }, children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mock-person left" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mock-person right" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "camera-badge", children: label }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "camera-overlay-copy", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Preview belum aktif" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Kamu masih bisa kembali dan pilih source kamera lain dari panel operator." })
-    ] })
-  ] });
-}
 function CameraStage({
   videoRef,
   cameraReady,
@@ -15386,12 +15436,14 @@ function CameraStage({
   filterCss,
   label
 }) {
-  if (!cameraReady) {
-    return /* @__PURE__ */ jsxRuntimeExports.jsx(MockCamera, { filterCss, label: cameraError || label });
-  }
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "live-camera-shell", style: { filter: filterCss }, children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("video", { ref: videoRef, className: "live-camera", muted: true, playsInline: true }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "live-camera-overlay", children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `live-camera-shell${cameraReady ? " ready" : " waiting"}`, style: { filter: filterCss }, children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("video", { ref: videoRef, className: "live-camera", muted: true, playsInline: true, autoPlay: true }),
+    !cameraReady && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "camera-empty-state", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "camera-empty-mark", "aria-hidden": "true" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Preview belum aktif" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: cameraError || "Sedang menghubungkan kamera." })
+    ] }),
+    cameraReady && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "live-camera-overlay", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "focus-frame" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "camera-badge", children: label })
     ] })
