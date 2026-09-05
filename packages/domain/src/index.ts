@@ -127,7 +127,7 @@ export const defaultSettings: BoothSettings = {
   autoResetSeconds: 60,
   driveRootFolderName: "Photobooth Sessions",
   slotOverrides: {},
-  frameRevision: 3
+  frameRevision: 4
 };
 
 export const templates: PhotoTemplate[] = [
@@ -140,12 +140,12 @@ export const templates: PhotoTemplate[] = [
     height: 5610,
     overlayAsset: "frame-1.png",
     slots: [
-      { id: "slot-1", photoIndex: 0, x: 221, y: 958, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-2", photoIndex: 1, x: 1937, y: 958, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-3", photoIndex: 2, x: 221, y: 2263, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-4", photoIndex: 3, x: 1937, y: 2263, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-5", photoIndex: 4, x: 221, y: 3567, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 },
-      { id: "slot-6", photoIndex: 5, x: 1937, y: 3567, width: 1601, height: 1200, rotation: 0, cornerRadius: 24 }
+      { id: "slot-1", photoIndex: 0, x: 221, y: 958, width: 1601, height: 1200, rotation: 0, cornerRadius: 0 },
+      { id: "slot-2", photoIndex: 1, x: 1937, y: 958, width: 1601, height: 1200, rotation: 0, cornerRadius: 0 },
+      { id: "slot-3", photoIndex: 2, x: 221, y: 2263, width: 1601, height: 1200, rotation: 0, cornerRadius: 0 },
+      { id: "slot-4", photoIndex: 3, x: 1937, y: 2263, width: 1601, height: 1200, rotation: 0, cornerRadius: 0 },
+      { id: "slot-5", photoIndex: 4, x: 221, y: 3567, width: 1601, height: 1200, rotation: 0, cornerRadius: 0 },
+      { id: "slot-6", photoIndex: 5, x: 1937, y: 3567, width: 1601, height: 1200, rotation: 0, cornerRadius: 0 }
     ]
   },
   {
@@ -157,12 +157,12 @@ export const templates: PhotoTemplate[] = [
     height: 5610,
     overlayAsset: "frame-2.png",
     slots: [
-      { id: "slot-1", photoIndex: 0, x: 220, y: 810, width: 1370, height: 1370, rotation: 0, cornerRadius: 50 },
-      { id: "slot-2", photoIndex: 1, x: 2142, y: 970, width: 1380, height: 1150, rotation: 0, cornerRadius: 50 },
-      { id: "slot-3", photoIndex: 2, x: 220, y: 2270, width: 1280, height: 1360, rotation: 0, cornerRadius: 50 },
-      { id: "slot-4", photoIndex: 3, x: 2142, y: 2310, width: 1390, height: 1150, rotation: 0, cornerRadius: 50 },
-      { id: "slot-5", photoIndex: 4, x: 220, y: 3720, width: 1350, height: 1360, rotation: 0, cornerRadius: 50 },
-      { id: "slot-6", photoIndex: 5, x: 2142, y: 3650, width: 1390, height: 1150, rotation: 0, cornerRadius: 50 }
+      { id: "slot-1", photoIndex: 0, x: 220, y: 810, width: 1370, height: 1370, rotation: 0, cornerRadius: 0 },
+      { id: "slot-2", photoIndex: 1, x: 2142, y: 970, width: 1380, height: 1150, rotation: 0, cornerRadius: 0 },
+      { id: "slot-3", photoIndex: 2, x: 220, y: 2270, width: 1280, height: 1360, rotation: 0, cornerRadius: 0 },
+      { id: "slot-4", photoIndex: 3, x: 2142, y: 2310, width: 1390, height: 1150, rotation: 0, cornerRadius: 0 },
+      { id: "slot-5", photoIndex: 4, x: 220, y: 3720, width: 1350, height: 1360, rotation: 0, cornerRadius: 0 },
+      { id: "slot-6", photoIndex: 5, x: 2142, y: 3650, width: 1390, height: 1150, rotation: 0, cornerRadius: 0 }
     ]
   },
   {
@@ -174,12 +174,12 @@ export const templates: PhotoTemplate[] = [
     height: 5610,
     overlayAsset: "frame-3.png",
     slots: [
-      { id: "slot-1", photoIndex: 0, x: 190, y: 730, width: 1490, height: 1300, rotation: 0, cornerRadius: 50 },
-      { id: "slot-2", photoIndex: 1, x: 2082, y: 730, width: 1490, height: 1300, rotation: 0, cornerRadius: 50 },
-      { id: "slot-3", photoIndex: 2, x: 190, y: 2160, width: 1490, height: 1290, rotation: 0, cornerRadius: 50 },
-      { id: "slot-4", photoIndex: 3, x: 2082, y: 2160, width: 1490, height: 1290, rotation: 0, cornerRadius: 50 },
-      { id: "slot-5", photoIndex: 4, x: 190, y: 3580, width: 1490, height: 1300, rotation: 0, cornerRadius: 50 },
-      { id: "slot-6", photoIndex: 5, x: 2082, y: 3580, width: 1490, height: 1300, rotation: 0, cornerRadius: 50 }
+      { id: "slot-1", photoIndex: 0, x: 190, y: 730, width: 1490, height: 1300, rotation: 0, cornerRadius: 0 },
+      { id: "slot-2", photoIndex: 1, x: 2082, y: 730, width: 1490, height: 1300, rotation: 0, cornerRadius: 0 },
+      { id: "slot-3", photoIndex: 2, x: 190, y: 2160, width: 1490, height: 1290, rotation: 0, cornerRadius: 0 },
+      { id: "slot-4", photoIndex: 3, x: 2082, y: 2160, width: 1490, height: 1290, rotation: 0, cornerRadius: 0 },
+      { id: "slot-5", photoIndex: 4, x: 190, y: 3580, width: 1490, height: 1300, rotation: 0, cornerRadius: 0 },
+      { id: "slot-6", photoIndex: 5, x: 2082, y: 3580, width: 1490, height: 1300, rotation: 0, cornerRadius: 0 }
     ]
   },
   {
@@ -191,12 +191,12 @@ export const templates: PhotoTemplate[] = [
     height: 5610,
     overlayAsset: "frame-4.png",
     slots: [
-      { id: "slot-1", photoIndex: 0, x: 130, y: 1060, width: 1620, height: 1250, rotation: 0, cornerRadius: 40 },
-      { id: "slot-2", photoIndex: 1, x: 2020, y: 1060, width: 1620, height: 1250, rotation: 0, cornerRadius: 40 },
-      { id: "slot-3", photoIndex: 2, x: 130, y: 2310, width: 1620, height: 1250, rotation: 0, cornerRadius: 40 },
-      { id: "slot-4", photoIndex: 3, x: 2020, y: 2310, width: 1620, height: 1250, rotation: 0, cornerRadius: 40 },
-      { id: "slot-5", photoIndex: 4, x: 130, y: 3560, width: 1620, height: 1250, rotation: 0, cornerRadius: 40 },
-      { id: "slot-6", photoIndex: 5, x: 2020, y: 3560, width: 1620, height: 1250, rotation: 0, cornerRadius: 40 }
+      { id: "slot-1", photoIndex: 0, x: 130, y: 1060, width: 1620, height: 1250, rotation: 0, cornerRadius: 0 },
+      { id: "slot-2", photoIndex: 1, x: 2020, y: 1060, width: 1620, height: 1250, rotation: 0, cornerRadius: 0 },
+      { id: "slot-3", photoIndex: 2, x: 130, y: 2310, width: 1620, height: 1250, rotation: 0, cornerRadius: 0 },
+      { id: "slot-4", photoIndex: 3, x: 2020, y: 2310, width: 1620, height: 1250, rotation: 0, cornerRadius: 0 },
+      { id: "slot-5", photoIndex: 4, x: 130, y: 3560, width: 1620, height: 1250, rotation: 0, cornerRadius: 0 },
+      { id: "slot-6", photoIndex: 5, x: 2020, y: 3560, width: 1620, height: 1250, rotation: 0, cornerRadius: 0 }
     ]
   },
   {
@@ -208,12 +208,12 @@ export const templates: PhotoTemplate[] = [
     height: 5610,
     overlayAsset: "frame-5.png",
     slots: [
-      { id: "slot-1", photoIndex: 0, x: 310, y: 980, width: 1258, height: 860, rotation: 0, cornerRadius: 50 },
-      { id: "slot-2", photoIndex: 1, x: 2196, y: 1250, width: 1258, height: 860, rotation: 0, cornerRadius: 50 },
-      { id: "slot-3", photoIndex: 2, x: 310, y: 2070, width: 1258, height: 860, rotation: 0, cornerRadius: 50 },
-      { id: "slot-4", photoIndex: 3, x: 2196, y: 2340, width: 1258, height: 860, rotation: 0, cornerRadius: 50 },
-      { id: "slot-5", photoIndex: 4, x: 310, y: 3160, width: 1258, height: 860, rotation: 0, cornerRadius: 50 },
-      { id: "slot-6", photoIndex: 5, x: 2196, y: 3430, width: 1258, height: 860, rotation: 0, cornerRadius: 50 }
+      { id: "slot-1", photoIndex: 0, x: 310, y: 980, width: 1258, height: 860, rotation: 0, cornerRadius: 0 },
+      { id: "slot-2", photoIndex: 1, x: 2196, y: 1250, width: 1258, height: 860, rotation: 0, cornerRadius: 0 },
+      { id: "slot-3", photoIndex: 2, x: 310, y: 2070, width: 1258, height: 860, rotation: 0, cornerRadius: 0 },
+      { id: "slot-4", photoIndex: 3, x: 2196, y: 2340, width: 1258, height: 860, rotation: 0, cornerRadius: 0 },
+      { id: "slot-5", photoIndex: 4, x: 310, y: 3160, width: 1258, height: 860, rotation: 0, cornerRadius: 0 },
+      { id: "slot-6", photoIndex: 5, x: 2196, y: 3430, width: 1258, height: 860, rotation: 0, cornerRadius: 0 }
     ]
   }
 ];
