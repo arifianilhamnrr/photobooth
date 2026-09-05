@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, nativeImage } from "electron";
 import { execFile, spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { promisify } from "node:util";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { tmpdir } from "node:os";
@@ -48,10 +49,27 @@ let gphotoLiveView: {
   latestFrame?: Buffer;
   error?: string;
 } | null = null;
+
+function loadUserEnvironment(): void {
+  const configPath = join(app.getPath("userData"), "env");
+  if (!existsSync(configPath)) return;
+  for (const rawLine of readFileSync(configPath, "utf8").split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+    const separator = line.indexOf("=");
+    if (separator < 1) continue;
+    const key = line.slice(0, separator).trim();
+    const value = line.slice(separator + 1).trim().replace(/^(["'])(.*)\1$/, "$2");
+    if (!process.env[key]) process.env[key] = value;
+  }
+}
+
+loadUserEnvironment();
+
 const cloudflareService = new CloudflareUploadService(process.env.PHOTOBOOTH_CLOUD_URL ?? "https://photobooth.collaborationday2026.web.id");
 const brevoEmailService = new BrevoEmailService({
   apiKey: process.env.BREVO_API_KEY,
-  smtpLogin: process.env.BREVO_SMTP_LOGIN ?? "ab3ed4001@smtp-brevo.com",
+  smtpLogin: process.env.BREVO_SMTP_LOGIN,
   senderEmail: process.env.BREVO_SENDER_EMAIL ?? "noreply@collaborationday2026.web.id",
   senderName: process.env.BREVO_SENDER_NAME ?? "Collaboration Day 2026 Photobooth"
 });

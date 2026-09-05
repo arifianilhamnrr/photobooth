@@ -8,6 +8,7 @@
     "email": "arifianilhamnur@gmail.com"
   },
   "homepage": "https://photobooth.collaborationday2026.web.id",
+  "license": "UNLICENSED",
   "desktopName": "collaboration-day-photobooth",
   "type": "module",
   "main": "dist/main/index.js",
@@ -24,8 +25,6 @@
     "@photobooth/domain": "*",
     "@photobooth/drive": "*",
     "@photobooth/storage": "*",
-    "@img/sharp-libvips-linux-x64": "1.2.4",
-    "@img/sharp-linux-x64": "0.34.5",
     "googleapis": "^178.0.0",
     "node-addon-api": "^8.5.0",
     "nodemailer": "^7.0.5",
@@ -55,7 +54,7 @@
     "productName": "Collaboration Day Photobooth",
     "executableName": "collaboration-day-photobooth",
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": ["AppImage", "deb", "pacman"],
       "category": "Graphics",
       "icon": "resources/icon.png",
       "maintainer": "Arifian Ilham Nur <arifianilhamnur@gmail.com>",
@@ -64,6 +63,39 @@
     "deb": {
       "packageName": "collaboration-day-photobooth",
       "artifactName": "collaboration-day-photobooth_${version}_${arch}.${ext}"
+    },
+    "pacman": {
+      "packageName": "collaboration-day-photobooth",
+      "artifactName": "collaboration-day-photobooth-${version}-${arch}.pkg.tar.zst",
+      "depends": [
+        "alsa-lib",
+        "at-spi2-core",
+        "cairo",
+        "cups",
+        "dbus",
+        "expat",
+        "gcc-libs",
+        "glib2",
+        "glibc",
+        "gtk3",
+        "libcups",
+        "libdrm",
+        "libnotify",
+        "libx11",
+        "libxcb",
+        "libxcomposite",
+        "libxdamage",
+        "libxext",
+        "libxfixes",
+        "libxkbcommon",
+        "libxrandr",
+        "mesa",
+        "nss",
+        "pango",
+        "systemd-libs",
+        "xdg-utils",
+        "gphoto2"
+      ]
     },
     "directories": {
       "output": "release"
@@ -89,7 +121,8 @@
     ],
     "win": {
       "target": ["nsis"],
-      "icon": "resources/icon.ico"
+      "icon": "resources/icon.ico",
+      "artifactName": "Collaboration-Day-Photobooth-Setup-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,

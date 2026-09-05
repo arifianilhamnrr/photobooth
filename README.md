@@ -4,14 +4,16 @@ Desktop photobooth offline-first untuk event `Collaboration Day 2026`.
 
 Fitur utama:
 
-- Berjalan di Linux dan disiapkan untuk Windows.
+- Berjalan di Windows dan Linux.
 - Mendukung webcam browser dan Canon EOS tethered via `gphoto2`.
 - Template strip berbasis PNG transparan.
 - Retake per foto.
 - Simpan file lokal per sesi.
 - Upload hasil ke Cloudflare Worker + R2 + D1.
 - QR code ke link hasil publik.
-- Input email di akhir flow.
+- Upload dan QR sebelum email opsional.
+- GIF animasi dari enam foto.
+- Prompt donasi QRIS opsional sebelum download.
 - Kirim link hasil via Brevo SMTP.
 
 ## Status Saat Ini
@@ -24,7 +26,8 @@ Yang sudah berjalan end-to-end:
 - Upload ke `photobooth.collaborationday2026.web.id`.
 - Link publik hasil di Cloudflare.
 - Kirim email hasil lewat Brevo SMTP.
-- Package Linux `.AppImage` dan `.deb`.
+- Package Windows `.exe` (NSIS).
+- Package Linux `.AppImage`, `.deb`, dan `.pkg.tar.zst` untuk Arch/CachyOS.
 
 ## Struktur Repo
 
@@ -48,15 +51,39 @@ DESIGN.md       Dokumentasi flow dan UI
 
 ### Desktop App
 
-Set env ini sebelum menjalankan app desktop:
+App membaca konfigurasi dari environment process atau file `env` pada direktori data pengguna.
+
+Linux:
+
+```text
+~/.config/@photobooth/desktop/env
+```
+
+Windows:
+
+```text
+%APPDATA%\@photobooth\desktop\env
+```
+
+Isi file:
 
 ```bash
 export PHOTOBOOTH_CLOUD_URL="https://photobooth.collaborationday2026.web.id"
 export BREVO_API_KEY="<smtp-password-brevo>"
-export BREVO_SMTP_LOGIN="ab3ed4001@smtp-brevo.com"
+export BREVO_SMTP_LOGIN="<smtp-login-brevo>"
 export BREVO_SENDER_EMAIL="noreply@collaborationday2026.web.id"
 export BREVO_SENDER_NAME="Collaboration Day 2026 Photobooth"
 ```
+
+Jangan commit file ini. Gunakan `.env.example` sebagai contoh tanpa credential.
+
+Pada Linux dari source checkout, buat template config dengan:
+
+```bash
+npm run config:install
+```
+
+Setelah instalasi package, file config dapat dibuat manual pada lokasi di atas. Restart app setelah mengubah config.
 
 Opsional untuk fallback Google Drive:
 
@@ -106,7 +133,11 @@ npm run dev                 # jalankan desktop app mode development
 npm run build               # build semua workspace
 npm run typecheck           # typecheck semua workspace
 npm run package:linux       # buat AppImage dan DEB Linux
+npm run package:arch        # buat paket Arch/CachyOS
+npm run package:windows     # buat installer NSIS (jalankan di Windows)
 npm run install:linux-deb   # install paket DEB ke laptop ini
+npm run install:arch        # install paket Arch/CachyOS
+npm run config:install      # buat template config user Linux
 npm run release:status      # lihat isi folder release desktop
 ```
 
@@ -122,8 +153,26 @@ Saat ini yang dihasilkan:
 
 - `Collaboration Day Photobooth-0.1.0.AppImage`
 - `collaboration-day-photobooth_0.1.0_amd64.deb`
+- `collaboration-day-photobooth-0.1.0-x64.pkg.tar.zst`
+- `Collaboration-Day-Photobooth-Setup-0.1.0-x64.exe`
 
 ## Install di Linux
+
+### Arch Linux, CachyOS, EndeavourOS, Manjaro
+
+```bash
+sudo pacman -U ./apps/desktop/release/collaboration-day-photobooth-0.1.0-x64.pkg.tar.zst
+```
+
+Atau:
+
+```bash
+npm run install:arch
+```
+
+Package Arch mencantumkan `gphoto2` sebagai dependency agar Canon dapat digunakan.
+
+### Ubuntu dan Debian
 
 Paket `.deb` bisa dipasang dengan:
 
@@ -143,19 +192,40 @@ Kalau mau langsung jalankan AppImage:
 ./apps/desktop/release/Collaboration\ Day\ Photobooth-0.1.0.AppImage
 ```
 
+### Windows 10/11 x64
+
+Download dan jalankan:
+
+```text
+Collaboration-Day-Photobooth-Setup-0.1.0-x64.exe
+```
+
+Installer menggunakan NSIS dan memberi pilihan direktori instalasi. Karena build belum ditandatangani dengan code-signing certificate, Windows SmartScreen mungkin menampilkan peringatan publisher tidak dikenal.
+
+Untuk mengaktifkan email Brevo pada Windows, buat file:
+
+```text
+%APPDATA%\@photobooth\desktop\env
+```
+
+Gunakan isi dari `.env.example`, lalu restart aplikasi.
+
+Webcam internal, USB webcam, capture card, dan kamera UVC seperti Insta360 Webcam Mode dapat digunakan lewat MediaDevices. Integrasi Canon tethered berbasis `gphoto2` saat ini hanya disertifikasi di Linux; Canon pada Windows belum dinyatakan didukung.
+
 ## Menjalankan Flow Booth
 
 1. Jalankan app.
 2. Pilih template.
 3. Cek kamera.
-4. Ambil 3 atau 4 foto.
-5. Review dan retake per foto jika perlu.
-6. Isi email pengunjung.
-7. Publish hasil.
+4. Ambil 6 foto dengan konfirmasi per foto.
+5. Review, retake, dan pilih filter.
+6. Upload hasil.
+7. Scan QR atau kirim link ke email secara opsional.
 8. App akan:
    - simpan lokal
    - upload ke Cloudflare
-   - kirim email hasil lewat Brevo
+   - membuat strip HD dan GIF
+   - mengirim email hasil lewat Brevo jika diminta
    - tampilkan QR code
 
 ## Canon EOS di Linux
@@ -225,4 +295,5 @@ File autostart akan dibuat di:
 
 - Folder `apps/desktop/release/` sengaja di-ignore dari git karena ukuran file besar.
 - GitHub Release dipakai untuk distribusi package, bukan commit artefak ke repo.
-- Windows target sudah dikonfigurasi di `electron-builder`, tapi build Windows idealnya dijalankan di runner Windows.
+- Windows installer dibangun pada runner Windows melalui `.github/workflows/release-desktop.yml`.
+- Release workflow juga membangun AppImage, DEB, dan paket Arch.

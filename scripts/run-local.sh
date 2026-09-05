@@ -3,9 +3,13 @@
 set -euo pipefail
 
 export PHOTOBOOTH_CLOUD_URL="https://photobooth.collaborationday2026.web.id"
-export BREVO_API_KEY="bsknrP9epgIaQ2Y"
-export BREVO_SMTP_LOGIN="ab3ed4001@smtp-brevo.com"
-export BREVO_SENDER_EMAIL="noreply@collaborationday2026.web.id"
-export BREVO_SENDER_NAME="Collaboration Day 2026 Photobooth"
+
+config_file="${XDG_CONFIG_HOME:-$HOME/.config}/@photobooth/desktop/env"
+if [[ -f "$config_file" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$config_file"
+  set +a
+fi
 
 exec "/home/ar/Projects/photobooth/apps/desktop/release/Collaboration Day Photobooth-0.1.0.AppImage"

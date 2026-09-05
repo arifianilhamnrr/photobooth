@@ -12,8 +12,12 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "package:linux": "npm run dist -w @photobooth/desktop",
+    "package:arch": "npm run build -w @photobooth/desktop && electron-builder --linux pacman --x64 --projectDir apps/desktop",
+    "package:windows": "npm run build -w @photobooth/desktop && electron-builder --win nsis --x64 --projectDir apps/desktop",
     "install:linux-deb": "sudo apt install -y \"./apps/desktop/release/collaboration-day-photobooth_0.1.0_amd64.deb\"",
+    "install:arch": "sudo pacman -U --needed \"./apps/desktop/release/collaboration-day-photobooth-0.1.0-x64.pkg.tar.zst\"",
     "release:status": "ls \"/home/ar/Projects/photobooth/apps/desktop/release\"",
+    "config:install": "bash ./scripts/install-local-config.sh",
     "autostart:install": "bash ./scripts/install-autostart.sh",
     "autostart:remove": "bash ./scripts/uninstall-autostart.sh"
   },
