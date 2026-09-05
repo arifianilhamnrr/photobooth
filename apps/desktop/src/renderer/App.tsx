@@ -22,7 +22,7 @@ import {
   type TemplateSlot
 } from "@photobooth/domain";
 
-type Step = "welcome" | "template" | "ready" | "capture" | "shot-review" | "review" | "saving" | "result";
+type Step = "welcome" | "template" | "ready" | "pose-ready" | "capture" | "shot-review" | "review" | "saving" | "result";
 
 const CAPTURE_INTERVAL_MS = 900;
 
@@ -87,7 +87,7 @@ export default function App() {
   const editorSlot = editorTemplate.slots[editorSlotIndex] ?? editorTemplate.slots[0];
   const filter = useMemo(() => filters.find((item) => item.id === (session?.filterId ?? filterId)) ?? filters[0], [filterId, session?.filterId]);
   const shots = session?.shots ?? [];
-  const cameraActive = step === "ready" || step === "capture";
+  const cameraActive = step === "ready" || step === "pose-ready" || step === "capture";
 
   useEffect(() => {
     window.photobooth.system.ping().then(() => setSystemStatus("Desktop siap dipakai")).catch(() => setSystemStatus("Main process tidak merespons"));
@@ -375,12 +375,11 @@ export default function App() {
 
   function requestRetake(shotIndex: number) {
     unlockAudio();
-    captureCycleRef.current += 1;
     setReplaceIndex(shotIndex);
     setRetakeCountRecorded(false);
     setCountdown(settings.countdownSeconds);
-    setQueueStatus(`Mengulang foto ${shotIndex + 1}.`);
-    setStep("capture");
+    setQueueStatus(`Siap mengulang foto ${shotIndex + 1}.`);
+    setStep("pose-ready");
   }
 
   function acceptCapturedShot() {
@@ -403,22 +402,29 @@ export default function App() {
 
     const nextIndex = lastCapturedIndex + 1;
     unlockAudio();
-    captureCycleRef.current += 1;
     setCaptureIndex(nextIndex);
     setLastCapturedIndex(null);
     setCountdown(settings.countdownSeconds);
-    setQueueStatus(`Siap untuk foto ${nextIndex + 1}.`);
-    setStep("capture");
+    setQueueStatus(`Atur pose untuk foto ${nextIndex + 1}, lalu tekan Mulai.`);
+    setStep("pose-ready");
   }
 
   function rejectCapturedShot() {
     const targetIndex = lastCapturedIndex ?? replaceIndex ?? captureIndex;
     unlockAudio();
-    captureCycleRef.current += 1;
     setCaptureIndex(targetIndex);
     setLastCapturedIndex(null);
     setCountdown(settings.countdownSeconds);
-    setQueueStatus(`Foto ${targetIndex + 1} dibatalkan. Ambil ulang sekarang.`);
+    setQueueStatus(`Foto ${targetIndex + 1} dibatalkan. Siapkan pose lalu tekan Mulai.`);
+    setStep("pose-ready");
+  }
+
+  function startPoseCountdown() {
+    unlockAudio();
+    captureCycleRef.current += 1;
+    setCountdown(settings.countdownSeconds);
+    setCaptureError("");
+    setQueueStatus(replaceIndex !== null ? `Mengambil ulang foto ${replaceIndex + 1}.` : `Mengambil foto ${captureIndex + 1}.`);
     setStep("capture");
   }
 
@@ -746,6 +752,7 @@ export default function App() {
               <span>{cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? countdown : "·"}</span>
               <small>{cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? (replaceIndex === null ? `Foto ${captureIndex + 1} dari ${template.captureCount}` : `Retake foto ${replaceIndex + 1}`) : "Menunggu kamera"}</small>
             </div>
+            <ShotRail shots={shots} activeIndex={replaceIndex ?? captureIndex} totalCount={template.captureCount} />
           </div>
           <div className="capture-rail">
             <p className="eyebrow">CAPTURE</p>
@@ -755,8 +762,36 @@ export default function App() {
               <strong>{replaceIndex === null ? `Pose ${captureIndex + 1} dari ${template.captureCount}` : `Retake foto ${replaceIndex + 1}`}</strong>
               <span>{!cameraReady && !selectedCameraSourceId.startsWith("gphoto:") ? "Menghubungkan kembali stream kamera." : countdown > 1 ? `Bersiap, foto akan diambil dalam ${countdown} detik.` : "Jepret sekarang."}</span>
             </div>
-            <ShotRail shots={shots} activeIndex={replaceIndex ?? captureIndex} />
             <button className="secondary-button full" onClick={() => setStep("ready")}>Kembali ke kamera</button>
+          </div>
+        </section>
+      )}
+
+      {step === "pose-ready" && session && (
+        <section className="capture-layout screen-card">
+          <div className="camera-stage full">
+            <CameraStage
+              videoRef={videoRef}
+              cameraReady={cameraReady}
+              cameraError={cameraError}
+              filterCss={filter.cssFilter}
+              label={replaceIndex !== null ? `Siap ulang foto ${replaceIndex + 1} · ${cameraLabel}` : `Siap foto ${captureIndex + 1} dari ${template.captureCount} · ${cameraLabel}`}
+              nativePreviewUrl={nativePreviewUrl}
+            />
+            <ShotRail shots={shots} activeIndex={replaceIndex ?? captureIndex} totalCount={template.captureCount} />
+          </div>
+          <div className="capture-rail pose-ready-panel">
+            <p className="eyebrow">SIAP POSE</p>
+            <h2>{replaceIndex !== null ? `Ulang foto ${replaceIndex + 1}.` : `Foto ${captureIndex + 1} berikutnya.`}</h2>
+            <p className="body small">Atur pose dulu. Countdown baru berjalan setelah tombol Mulai ditekan.</p>
+            <div className="capture-status-card">
+              <strong>{replaceIndex !== null ? `Retake foto ${replaceIndex + 1}` : `Pose ${captureIndex + 1} dari ${template.captureCount}`}</strong>
+              <span>{cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? "Kamera siap. Tekan Mulai kalau semua sudah siap." : "Menunggu kamera tersambung."}</span>
+            </div>
+            <div className="pose-ready-actions">
+              {replaceIndex !== null && <button className="secondary-button" onClick={() => { setReplaceIndex(null); setStep("review"); }}>Batal</button>}
+              <button className="primary-button" disabled={!cameraReady && !selectedCameraSourceId.startsWith("gphoto:")} onClick={startPoseCountdown}>Mulai</button>
+            </div>
           </div>
         </section>
       )}
@@ -824,8 +859,12 @@ export default function App() {
                 const remainingRetake = Math.max(0, settings.retakeLimitPerPhoto - (shot?.attemptsUsed ?? 0));
                 return (
                   <div key={index} className="shot-card">
-                    <div className="shot-thumb" style={{ background: shot?.color ?? "#2a2d31", filter: filter.cssFilter }}>
-                      <span>{shot ? `Foto ${index + 1}` : "Belum ada"}</span>
+                    <div className="shot-thumb">
+                      {shot?.dataUrl ? (
+                        <img src={shot.dataUrl} alt={`Foto ${index + 1}`} style={{ filter: filter.cssFilter }} />
+                      ) : (
+                        <span>{index + 1}</span>
+                      )}
                     </div>
                     <div className="shot-meta">
                       <strong>Foto {index + 1}</strong>
@@ -896,7 +935,7 @@ export default function App() {
                 <strong>Hasil siap diambil</strong>
                 <span>QR sudah aktif. Email boleh dilewati.</span>
               </div>
-              <button className="primary-button full" onClick={resetToWelcome}>{emailSent ? "Selesai" : "Selesai tanpa email"}</button>
+              <button className="primary-button full" onClick={resetToWelcome}>Selesai</button>
             </div>
           </div>
         </section>
@@ -1068,15 +1107,18 @@ function sampleShots(count: number): StoredShot[] {
   }));
 }
 
-function ShotRail({ shots, activeIndex }: { shots: StoredShot[]; activeIndex: number }) {
+function ShotRail({ shots, activeIndex, totalCount }: { shots: StoredShot[]; activeIndex: number; totalCount: number }) {
   return (
     <div className="shot-rail">
-      {Array.from({ length: Math.max(activeIndex + 1, shots.length) }, (_, index) => {
+      {Array.from({ length: totalCount }, (_, index) => {
         const shot = shots.find((item) => item.shotIndex === index);
         return (
           <div key={index} className={`shot-rail-item${index === activeIndex ? " active" : ""}`}>
-            <div className="shot-rail-color" style={{ background: shot?.color ?? "#232629" }} />
-            <span>{shot ? `Foto ${index + 1}` : `Menunggu foto ${index + 1}`}</span>
+            {shot?.dataUrl ? (
+              <img className="shot-rail-image" src={shot.dataUrl} alt={`Preview foto ${index + 1}`} />
+            ) : (
+              <span className="shot-rail-placeholder">{index + 1}</span>
+            )}
           </div>
         );
       })}

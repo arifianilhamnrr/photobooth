@@ -14755,7 +14755,7 @@ function App() {
   const editorSlot = editorTemplate.slots[editorSlotIndex] ?? editorTemplate.slots[0];
   const filter = reactExports.useMemo(() => filters.find((item) => item.id === (session?.filterId ?? filterId)) ?? filters[0], [filterId, session?.filterId]);
   const shots = session?.shots ?? [];
-  const cameraActive = step === "ready" || step === "capture";
+  const cameraActive = step === "ready" || step === "pose-ready" || step === "capture";
   reactExports.useEffect(() => {
     window.photobooth.system.ping().then(() => setSystemStatus("Desktop siap dipakai")).catch(() => setSystemStatus("Main process tidak merespons"));
     void refreshSnapshot();
@@ -15012,12 +15012,11 @@ function App() {
   }
   function requestRetake(shotIndex) {
     unlockAudio();
-    captureCycleRef.current += 1;
     setReplaceIndex(shotIndex);
     setRetakeCountRecorded(false);
     setCountdown(settings.countdownSeconds);
-    setQueueStatus(`Mengulang foto ${shotIndex + 1}.`);
-    setStep("capture");
+    setQueueStatus(`Siap mengulang foto ${shotIndex + 1}.`);
+    setStep("pose-ready");
   }
   function acceptCapturedShot() {
     if (lastCapturedIndex === null) return;
@@ -15037,21 +15036,27 @@ function App() {
     }
     const nextIndex = lastCapturedIndex + 1;
     unlockAudio();
-    captureCycleRef.current += 1;
     setCaptureIndex(nextIndex);
     setLastCapturedIndex(null);
     setCountdown(settings.countdownSeconds);
-    setQueueStatus(`Siap untuk foto ${nextIndex + 1}.`);
-    setStep("capture");
+    setQueueStatus(`Atur pose untuk foto ${nextIndex + 1}, lalu tekan Mulai.`);
+    setStep("pose-ready");
   }
   function rejectCapturedShot() {
     const targetIndex = lastCapturedIndex ?? replaceIndex ?? captureIndex;
     unlockAudio();
-    captureCycleRef.current += 1;
     setCaptureIndex(targetIndex);
     setLastCapturedIndex(null);
     setCountdown(settings.countdownSeconds);
-    setQueueStatus(`Foto ${targetIndex + 1} dibatalkan. Ambil ulang sekarang.`);
+    setQueueStatus(`Foto ${targetIndex + 1} dibatalkan. Siapkan pose lalu tekan Mulai.`);
+    setStep("pose-ready");
+  }
+  function startPoseCountdown() {
+    unlockAudio();
+    captureCycleRef.current += 1;
+    setCountdown(settings.countdownSeconds);
+    setCaptureError("");
+    setQueueStatus(replaceIndex !== null ? `Mengambil ulang foto ${replaceIndex + 1}.` : `Mengambil foto ${captureIndex + 1}.`);
     setStep("capture");
   }
   async function finishReview() {
@@ -15367,7 +15372,8 @@ function App() {
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "countdown-ring", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? countdown : "·" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? replaceIndex === null ? `Foto ${captureIndex + 1} dari ${template.captureCount}` : `Retake foto ${replaceIndex + 1}` : "Menunggu kamera" })
-        ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(ShotRail, { shots, activeIndex: replaceIndex ?? captureIndex, totalCount: template.captureCount })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "capture-rail", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "CAPTURE" }),
@@ -15377,8 +15383,39 @@ function App() {
           /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: replaceIndex === null ? `Pose ${captureIndex + 1} dari ${template.captureCount}` : `Retake foto ${replaceIndex + 1}` }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: !cameraReady && !selectedCameraSourceId.startsWith("gphoto:") ? "Menghubungkan kembali stream kamera." : countdown > 1 ? `Bersiap, foto akan diambil dalam ${countdown} detik.` : "Jepret sekarang." })
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(ShotRail, { shots, activeIndex: replaceIndex ?? captureIndex }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button full", onClick: () => setStep("ready"), children: "Kembali ke kamera" })
+      ] })
+    ] }),
+    step === "pose-ready" && session && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "capture-layout screen-card", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "camera-stage full", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          CameraStage,
+          {
+            videoRef,
+            cameraReady,
+            cameraError,
+            filterCss: filter.cssFilter,
+            label: replaceIndex !== null ? `Siap ulang foto ${replaceIndex + 1} · ${cameraLabel}` : `Siap foto ${captureIndex + 1} dari ${template.captureCount} · ${cameraLabel}`,
+            nativePreviewUrl
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(ShotRail, { shots, activeIndex: replaceIndex ?? captureIndex, totalCount: template.captureCount })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "capture-rail pose-ready-panel", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "SIAP POSE" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: replaceIndex !== null ? `Ulang foto ${replaceIndex + 1}.` : `Foto ${captureIndex + 1} berikutnya.` }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Atur pose dulu. Countdown baru berjalan setelah tombol Mulai ditekan." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "capture-status-card", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: replaceIndex !== null ? `Retake foto ${replaceIndex + 1}` : `Pose ${captureIndex + 1} dari ${template.captureCount}` }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? "Kamera siap. Tekan Mulai kalau semua sudah siap." : "Menunggu kamera tersambung." })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pose-ready-actions", children: [
+          replaceIndex !== null && /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", onClick: () => {
+            setReplaceIndex(null);
+            setStep("review");
+          }, children: "Batal" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", disabled: !cameraReady && !selectedCameraSourceId.startsWith("gphoto:"), onClick: startPoseCountdown, children: "Mulai" })
+        ] })
       ] })
     ] }),
     step === "shot-review" && session && lastCapturedIndex !== null && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "shot-review-layout screen-card", children: [
@@ -15428,7 +15465,7 @@ function App() {
           const shot = shots.find((item) => item.shotIndex === index);
           const remainingRetake = Math.max(0, settings.retakeLimitPerPhoto - (shot?.attemptsUsed ?? 0));
           return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "shot-card", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "shot-thumb", style: { background: shot?.color ?? "#2a2d31", filter: filter.cssFilter }, children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: shot ? `Foto ${index + 1}` : "Belum ada" }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "shot-thumb", children: shot?.dataUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: shot.dataUrl, alt: `Foto ${index + 1}`, style: { filter: filter.cssFilter } }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: index + 1 }) }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "shot-meta", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsxs("strong", { children: [
                 "Foto ",
@@ -15502,7 +15539,7 @@ function App() {
             /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Hasil siap diambil" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "QR sudah aktif. Email boleh dilewati." })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button full", onClick: resetToWelcome, children: emailSent ? "Selesai" : "Selesai tanpa email" })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button full", onClick: resetToWelcome, children: "Selesai" })
         ] })
       ] })
     ] }),
@@ -15650,13 +15687,10 @@ function sampleShots(count) {
     capturedAt: (/* @__PURE__ */ new Date()).toISOString()
   }));
 }
-function ShotRail({ shots, activeIndex }) {
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "shot-rail", children: Array.from({ length: Math.max(activeIndex + 1, shots.length) }, (_, index) => {
+function ShotRail({ shots, activeIndex, totalCount }) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "shot-rail", children: Array.from({ length: totalCount }, (_, index) => {
     const shot = shots.find((item) => item.shotIndex === index);
-    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `shot-rail-item${index === activeIndex ? " active" : ""}`, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "shot-rail-color", style: { background: shot?.color ?? "#232629" } }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: shot ? `Foto ${index + 1}` : `Menunggu foto ${index + 1}` })
-    ] }, index);
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `shot-rail-item${index === activeIndex ? " active" : ""}`, children: shot?.dataUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx("img", { className: "shot-rail-image", src: shot.dataUrl, alt: `Preview foto ${index + 1}` }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "shot-rail-placeholder", children: index + 1 }) }, index);
   }) });
 }
 function CameraStage({
