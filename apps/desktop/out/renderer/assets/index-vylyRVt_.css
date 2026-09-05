@@ -963,6 +963,11 @@ button {
   padding: 0 16px;
 }
 
+.cancel-session-button {
+  border-color: rgba(217, 107, 98, 0.48);
+  color: #efb5ae;
+}
+
 .operator-scrim {
   position: fixed;
   inset: 0;

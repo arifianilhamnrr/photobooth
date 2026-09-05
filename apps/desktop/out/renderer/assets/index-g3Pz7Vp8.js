@@ -14763,17 +14763,21 @@ function App() {
     void refreshSnapshot();
   }, []);
   reactExports.useEffect(() => window.photobooth.remote.onCommand((command) => {
+    if (command === "new-session" && step === "welcome") void startSession();
+    if (command.startsWith("frame:") && step === "template") setTemplateId(command.slice("frame:".length));
+    if (command === "confirm-frame" && step === "template") void confirmFrameSelection();
+    if (command === "cancel-session" && step !== "welcome") resetToWelcome();
     if (command === "start" && step === "ready") beginCapture();
     if (command === "start" && step === "pose-ready") startPoseCountdown();
     if (command === "accept" && step === "shot-review") acceptCapturedShot();
     if (command === "retake" && step === "shot-review") rejectCapturedShot();
     if (command.startsWith("filter:") && step === "review") selectFinalFilter(command.slice("filter:".length));
     if (command === "prepare" && step === "review") void prepareLocalResults();
-  }), [step, session, cameraReady, selectedCameraSourceId, lastCapturedIndex, replaceIndex, countdown]);
+  }), [step, session, cameraReady, selectedCameraSourceId, lastCapturedIndex, replaceIndex, countdown, templateId]);
   reactExports.useEffect(() => {
     const phaseMap = {
       welcome: "idle",
-      template: "idle",
+      template: "template",
       ready: "ready",
       "pose-ready": "pose-ready",
       capture: countdown > 1 ? "countdown" : "capturing",
@@ -14793,13 +14797,18 @@ function App() {
       gifReady: Boolean(session?.finalGifPath),
       filterId: session?.filterId ?? filterId,
       filterRendering,
+      templateId,
       publicUrl: session?.driveUrl,
       stripPath: session?.finalStripPath,
       gifPath: session?.finalGifPath
     });
-  }, [cameraReady, captureIndex, countdown, lastCapturedIndex, replaceIndex, selectedCameraSourceId, session, step, template.captureCount]);
+  }, [cameraReady, captureIndex, countdown, filterId, filterRendering, lastCapturedIndex, replaceIndex, selectedCameraSourceId, session, step, template.captureCount, templateId]);
   reactExports.useEffect(() => {
     if (!remoteStatus.enabled) return;
+    if (step === "welcome" || step === "template") {
+      void window.photobooth.remote.updatePreview(void 0);
+      return;
+    }
     const timer = window.setInterval(() => {
       const resultShot = lastCapturedIndex === null ? void 0 : shots.find((shot) => shot.shotIndex === lastCapturedIndex)?.dataUrl;
       const dataUrl = step === "shot-review" ? resultShot : selectedCameraSourceId.startsWith("gphoto:") ? nativePreviewUrl : captureFrame(720, 0.62);
@@ -15046,6 +15055,18 @@ function App() {
     setQueueStatus("Pilih frame dulu sebelum mulai foto.");
     setStep("template");
   }
+  async function confirmFrameSelection() {
+    if (!session) return;
+    const updated = await window.photobooth.sessions.updateConfig({ sessionId: session.id, templateId, filterId });
+    setSession(updated);
+    updateSessionCollection(updated);
+    setQueueStatus(`${getTemplate(templateId).name} siap dipakai.`);
+    setStep("ready");
+  }
+  function cancelSession() {
+    if (!window.confirm("Batalkan sesi foto dan kembali ke home?")) return;
+    resetToWelcome();
+  }
   function beginCapture() {
     if (!session) return;
     if (!cameraReady && !selectedCameraSourceId.startsWith("gphoto:")) {
@@ -15204,6 +15225,7 @@ function App() {
     setEmailSending(false);
     setQueueStatus("Siap memulai sesi baru");
     setStep("welcome");
+    void window.photobooth.remote.updatePreview(void 0);
   }
   async function updateAccentColor(event) {
     const next = await window.photobooth.settings.update({ accentColor: event.target.value });
@@ -15339,6 +15361,7 @@ function App() {
           cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? "Kamera siap" : "Cek kamera"
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "status-pill muted compact-status", children: queueStatus }),
+        step !== "welcome" && /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button operator-toggle cancel-session-button", onClick: cancelSession, children: "Batalkan sesi" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button operator-toggle", onClick: () => setOperatorOpen(true), children: "Operator" })
       ] })
     ] }),
@@ -15377,14 +15400,8 @@ function App() {
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "action-row compact-actions", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Filter dipilih setelah semua foto selesai agar hasilnya bisa dibandingkan langsung." }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "dual-actions compact-dual-actions", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", onClick: resetToWelcome, children: "Kembali" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: async () => {
-            const updated = await window.photobooth.sessions.updateConfig({ sessionId: session.id, templateId, filterId });
-            setSession(updated);
-            updateSessionCollection(updated);
-            setQueueStatus(`${getTemplate(templateId).name} siap dipakai.`);
-            setStep("ready");
-          }, children: "Pakai frame ini" })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", onClick: cancelSession, children: "Kembali ke home" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: () => void confirmFrameSelection(), children: "Pakai frame ini" })
         ] })
       ] })
     ] }),

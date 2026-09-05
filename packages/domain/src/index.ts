@@ -109,6 +109,7 @@ export interface CloudStatus {
 
 export type RemotePhase =
   | "idle"
+  | "template"
   | "ready"
   | "pose-ready"
   | "countdown"
@@ -130,6 +131,7 @@ export interface RemoteSessionState {
   gifReady: boolean;
   filterId: FilterId;
   filterRendering: boolean;
+  templateId?: string;
   publicUrl?: string;
 }
 

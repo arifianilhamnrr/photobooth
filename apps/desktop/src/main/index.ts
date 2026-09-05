@@ -41,6 +41,9 @@ const stripRendererPath = app.isPackaged
   ? join(process.resourcesPath, "render-strip.cjs")
   : join(app.getAppPath(), "resources", "render-strip.cjs");
 const driveAuthPath = join(app.getPath("userData"), "drive-auth.json");
+const remoteFramesPath = app.isPackaged
+  ? join(process.resourcesPath, "frames")
+  : join(app.getAppPath(), "src", "renderer", "assets", "frames");
 const iconPath = join(app.getAppPath(), "resources", process.platform === "win32" ? "icon.ico" : "icon.png");
 const execFileAsync = promisify(execFile);
 let selectedCameraSourceId = "webcam:default";
@@ -52,7 +55,7 @@ let gphotoLiveView: {
   latestFrame?: Buffer;
   error?: string;
 } | null = null;
-const remoteServer = new RemoteControlServer(() => mainWindow);
+const remoteServer = new RemoteControlServer(() => mainWindow, remoteFramesPath);
 
 function loadUserEnvironment(): void {
   const configPath = join(app.getPath("userData"), "env");

@@ -6,11 +6,12 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { BrowserWindow } from "electron";
 import type { RemoteSessionState, RemoteStatus } from "@photobooth/domain";
+import { remotePage } from "./remote-page";
 
 const execFileAsync = promisify(execFile);
 const PORT = 8788;
 
-type RemoteCommand = "start" | "accept" | "retake" | "prepare" | `filter:${string}`;
+type RemoteCommand = "start" | "accept" | "retake" | "prepare" | "new-session" | "confirm-frame" | "cancel-session" | `filter:${string}` | `frame:${string}`;
 
 export class RemoteControlServer {
   private server = createServer((request, response) => void this.handle(request, response));
@@ -33,7 +34,10 @@ export class RemoteControlServer {
     filterRendering: false
   };
 
-  constructor(private readonly getWindow: () => BrowserWindow | null) {}
+  constructor(
+    private readonly getWindow: () => BrowserWindow | null,
+    private readonly framesDirectory: string
+  ) {}
 
   async start(): Promise<void> {
     if (this.server.listening) return;
@@ -95,7 +99,10 @@ export class RemoteControlServer {
   }
 
   updatePreview(dataUrl?: string): void {
-    if (!dataUrl) return;
+    if (!dataUrl) {
+      this.preview = undefined;
+      return;
+    }
     const match = dataUrl.match(/^data:image\/(?:jpeg|jpg);base64,(.+)$/);
     if (match) this.preview = Buffer.from(match[1], "base64");
   }
@@ -144,7 +151,7 @@ export class RemoteControlServer {
       return;
     }
     if (!this.isAuthorized(request)) return this.text(response, 401, "Remote belum dipasangkan.");
-    if (url.pathname === "/") return this.html(response, this.remotePage());
+    if (url.pathname === "/") return this.html(response, remotePage());
     if (url.pathname === "/api/state") return this.json(response, 200, this.state);
     if (url.pathname === "/api/preview") {
       if (!this.preview) return this.text(response, 404, "Preview belum tersedia.");
@@ -152,9 +159,14 @@ export class RemoteControlServer {
       response.end(this.preview);
       return;
     }
+    if (url.pathname.startsWith("/frames/")) {
+      const fileName = url.pathname.split("/").at(-1) ?? "";
+      if (!/^frame-[1-5]\.png$/.test(fileName)) return this.text(response, 404, "Frame tidak ditemukan.");
+      return this.file(response, `${this.framesDirectory}/${fileName}`, "image/png", fileName, false);
+    }
     if (url.pathname.startsWith("/api/command/") && request.method === "POST") {
       const command = decodeURIComponent(url.pathname.split("/").at(-1) ?? "") as RemoteCommand;
-      const allowed = ["start", "accept", "retake", "prepare", "filter:original", "filter:mono", "filter:warm", "filter:cool", "filter:contrast"];
+      const allowed = ["start", "accept", "retake", "prepare", "new-session", "confirm-frame", "cancel-session", "filter:original", "filter:mono", "filter:warm", "filter:cool", "filter:contrast", "frame:frame-1", "frame:frame-2", "frame:frame-3", "frame:frame-4", "frame:frame-5"];
       if (!allowed.includes(command)) return this.json(response, 400, { error: "Command tidak valid" });
       this.getWindow()?.webContents.send("remote:command", command);
       return this.json(response, 202, { ok: true });
@@ -164,10 +176,15 @@ export class RemoteControlServer {
     return this.text(response, 404, "Tidak ditemukan.");
   }
 
-  private async file(response: ServerResponse, path: string, contentType: string, name: string): Promise<void> {
+  private async file(response: ServerResponse, path: string, contentType: string, name: string, download = true): Promise<void> {
     try {
       const bytes = await readFile(path);
-      response.writeHead(200, { "content-type": contentType, "content-length": bytes.length, "content-disposition": `attachment; filename="${name}"`, "cache-control": "no-store" });
+      response.writeHead(200, {
+        "content-type": contentType,
+        "content-length": bytes.length,
+        ...(download ? { "content-disposition": `attachment; filename="${name}"` } : {}),
+        "cache-control": download ? "no-store" : "public, max-age=3600"
+      });
       response.end(bytes);
     } catch {
       this.text(response, 404, "File belum tersedia.");
