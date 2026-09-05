@@ -14601,7 +14601,8 @@ const defaultSettings = {
   autoResetSeconds: 60,
   driveRootFolderName: "Photobooth Sessions",
   slotOverrides: {},
-  frameRevision: 4
+  frameRevision: 4,
+  operatorPin: "2026"
 };
 const templates = [
   {
@@ -14728,6 +14729,9 @@ function App() {
   const [queueStatus, setQueueStatus] = reactExports.useState("Siap memulai sesi baru");
   const [qrUrl, setQrUrl] = reactExports.useState("");
   const [operatorOpen, setOperatorOpen] = reactExports.useState(false);
+  const [operatorUnlocked, setOperatorUnlocked] = reactExports.useState(false);
+  const [operatorPin, setOperatorPin] = reactExports.useState("");
+  const [operatorPinError, setOperatorPinError] = reactExports.useState("");
   const [cameraError, setCameraError] = reactExports.useState("");
   const [cameraReady, setCameraReady] = reactExports.useState(false);
   const [cameraLabel, setCameraLabel] = reactExports.useState("Kamera belum dipilih");
@@ -14747,6 +14751,7 @@ function App() {
   const audioContextRef = reactExports.useRef(null);
   const captureCycleRef = reactExports.useRef(0);
   const lastCountdownSoundRef = reactExports.useRef("");
+  const sessionGenerationRef = reactExports.useRef(0);
   const template = reactExports.useMemo(() => {
     const base = getTemplate(session?.templateId ?? templateId);
     const slots = settings.slotOverrides[base.id] ?? base.slots;
@@ -14772,6 +14777,24 @@ function App() {
     window.photobooth.system.ping().then(() => setSystemStatus("Desktop siap dipakai")).catch(() => setSystemStatus("Main process tidak merespons"));
     void refreshSnapshot();
   }, []);
+  reactExports.useEffect(() => {
+    const removePublished = window.photobooth.queue.onPublished((published) => {
+      setAllSessions((current) => [published, ...current.filter((item) => item.id !== published.id)]);
+      setQueue((current) => current.filter((item) => item.sessionId !== published.id));
+      if (session?.id === published.id) {
+        setSession(published);
+        setQueueStatus("Link publik dan QR sudah siap.");
+      }
+    });
+    const removeFailed = window.photobooth.queue.onFailed((failure) => {
+      void window.photobooth.queue.list().then(setQueue);
+      if (session?.id === failure.sessionId) setQueueStatus("Upload tertunda. Hasil lokal tetap aman dan bisa diunduh.");
+    });
+    return () => {
+      removePublished();
+      removeFailed();
+    };
+  }, [session?.id]);
   reactExports.useEffect(() => window.photobooth.remote.onCommand((command) => {
     if (command === "new-session" && step === "welcome") void startSession();
     if (command.startsWith("frame:") && step === "template") setTemplateId(command.slice("frame:".length));
@@ -14874,7 +14897,9 @@ function App() {
       setShutterFlash(true);
       window.setTimeout(() => setShutterFlash(false), 140);
       const countAsRetake = replaceIndex !== null && !retakeCountRecorded;
+      const generation = sessionGenerationRef.current;
       void window.photobooth.sessions.captureShot({ sessionId: session.id, shotIndex: targetIndex, dataUrl: dataUrl ?? void 0, countAsRetake }).then((nextSession) => {
+        if (generation !== sessionGenerationRef.current) return;
         setSession(nextSession);
         updateSessionCollection(nextSession);
         setCountdown(settings.countdownSeconds);
@@ -14884,6 +14909,7 @@ function App() {
         setQueueStatus(`Cek hasil foto ${targetIndex + 1} sebelum lanjut.`);
         setStep("shot-review");
       }).catch((error) => {
+        if (generation !== sessionGenerationRef.current) return;
         const message = error instanceof Error ? error.message : "Gagal mengambil foto dari kamera.";
         setCaptureError(message);
         setCameraStatusMessage("Pengambilan foto gagal. Periksa koneksi kamera lalu coba lagi.");
@@ -14894,6 +14920,11 @@ function App() {
     }, CAPTURE_INTERVAL_MS);
     return () => clearTimeout(timer);
   }, [cameraReady, captureCount, captureIndex, countdown, replaceIndex, selectedCameraSourceId, session, settings.countdownSeconds, step]);
+  reactExports.useEffect(() => {
+    if (step !== "result") return;
+    const timer = window.setTimeout(() => resetToWelcome(), settings.autoResetSeconds * 1e3);
+    return () => window.clearTimeout(timer);
+  }, [settings.autoResetSeconds, step]);
   reactExports.useEffect(() => {
     if (!cameraActive) {
       stopCamera();
@@ -15050,6 +15081,7 @@ function App() {
     setAllSessions((current) => [nextSession, ...current.filter((item) => item.id !== nextSession.id)]);
   }
   async function startSession() {
+    sessionGenerationRef.current += 1;
     const defaultTemplateId = templates.find((item) => item.id === "frame-3")?.id ?? templates[0].id;
     const defaultFilterId = "original";
     const defaultCaptureCount = 6;
@@ -15165,21 +15197,20 @@ function App() {
     setStep("saving");
     setQueueStatus("Foto kamu sudah aman. Sedang mengunggah hasil.");
     try {
-      const published = await window.photobooth.sessions.publish({ sessionId: preparedSession.id });
-      setSession(published);
-      updateSessionCollection(published);
+      const pending = await window.photobooth.sessions.publish({ sessionId: preparedSession.id });
+      setSession(pending);
+      updateSessionCollection(pending);
       setQueue((current) => {
         const nextItem = {
-          sessionId: published.id,
-          status: "published",
-          createdAt: published.createdAt,
-          updatedAt: published.updatedAt,
-          driveUrl: published.driveUrl
+          sessionId: pending.id,
+          status: "waiting",
+          createdAt: pending.createdAt,
+          updatedAt: pending.updatedAt
         };
-        return [nextItem, ...current.filter((item) => item.sessionId !== published.id)];
+        return [nextItem, ...current.filter((item) => item.sessionId !== pending.id)];
       });
       setStep("result");
-      setQueueStatus("Link hasil dan QR sudah siap.");
+      setQueueStatus("Hasil lokal siap. Upload berjalan otomatis di background.");
     } catch (error) {
       setEmailError(error instanceof Error ? error.message : "Upload gagal. Coba lagi.");
       setStep("review");
@@ -15242,6 +15273,11 @@ function App() {
     }
   }
   function resetToWelcome() {
+    sessionGenerationRef.current += 1;
+    const currentSessionId = session?.id;
+    if (currentSessionId && session.status !== "published" && session.status !== "sync_pending") {
+      void window.photobooth.sessions.cancel({ sessionId: currentSessionId });
+    }
     setSession(null);
     setQrUrl("");
     setReplaceIndex(null);
@@ -15262,12 +15298,33 @@ function App() {
     setCaptureError("");
   }
   async function resetStore() {
+    if (!window.confirm("Reset database sesi lokal? File foto di disk tidak ikut dihapus.")) return;
     await window.photobooth.debug.reset();
     setSession(null);
     setStep("welcome");
     setQrUrl("");
     setQueueStatus("Data lokal direset untuk demo.");
     await refreshSnapshot();
+  }
+  function closeOperator() {
+    setOperatorOpen(false);
+    setOperatorUnlocked(false);
+    setOperatorPin("");
+    setOperatorPinError("");
+  }
+  function unlockOperator() {
+    if (operatorPin === settings.operatorPin) {
+      setOperatorUnlocked(true);
+      setOperatorPin("");
+      setOperatorPinError("");
+      return;
+    }
+    setOperatorPin("");
+    setOperatorPinError("PIN operator salah.");
+  }
+  async function retryUpload(sessionId) {
+    await window.photobooth.queue.retry(sessionId);
+    setQueue(await window.photobooth.queue.list());
   }
   async function signInDrive() {
     const status = await window.photobooth.drive.signIn();
@@ -15657,14 +15714,10 @@ function App() {
         session.finalGifDataUrl && /* @__PURE__ */ jsxRuntimeExports.jsx("img", { className: "result-gif-preview", src: session.finalGifDataUrl, alt: "GIF animasi enam foto photobooth" })
       ] }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "qr-panel", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "QR SIAP" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "Scan untuk ambil fotomu." }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "body small", children: [
-          "Link hasil sesi ",
-          session.id,
-          " sudah siap. Scan QR untuk melihat dan download fotomu."
-        ] }),
-        qrUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx("img", { className: "qr-image", src: qrUrl, alt: "QR untuk membuka hasil photobooth" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "qr-placeholder" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: session.driveUrl ? "QR SIAP" : "HASIL LOKAL SIAP" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: session.driveUrl ? "Scan untuk ambil fotomu." : "Upload berjalan di background." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: session.driveUrl ? `Link hasil sesi ${session.id} sudah siap.` : "Strip dan GIF sudah aman di laptop. QR publik muncul otomatis setelah internet tersedia." }),
+        qrUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx("img", { className: "qr-image", src: qrUrl, alt: "QR untuk membuka hasil photobooth" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "qr-placeholder", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Menunggu link publik" }) }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "optional-email-box", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: emailSent ? "Email berhasil dikirim" : "Kirim link ke email? (opsional)" }),
           !emailSent && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "optional-email-row", children: [
@@ -15681,7 +15734,7 @@ function App() {
                 placeholder: "nama@email.com"
               }
             ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", disabled: emailSending, onClick: () => void sendOptionalEmail(), children: emailSending ? "Mengirim..." : "Kirim email" })
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", disabled: emailSending || !session.driveUrl, onClick: () => void sendOptionalEmail(), children: emailSending ? "Mengirim..." : "Kirim email" })
           ] }),
           emailSent && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
             "Link dikirim ke ",
@@ -15699,14 +15752,14 @@ function App() {
         ] })
       ] })
     ] }),
-    operatorOpen && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "operator-scrim", onClick: () => setOperatorOpen(false), children: /* @__PURE__ */ jsxRuntimeExports.jsxs("aside", { className: "operator-panel", onClick: (event) => event.stopPropagation(), children: [
+    operatorOpen && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "operator-scrim", onClick: closeOperator, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("aside", { className: "operator-panel", onClick: (event) => event.stopPropagation(), children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-header", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "OPERATOR" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "Booth control" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "operator-help", children: "Atur kamera, publish, dan mode kiosk tanpa mengganggu alur tamu." })
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button small operator-close", onClick: () => setOperatorOpen(false), children: "Tutup" })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button small operator-close", onClick: closeOperator, children: "Tutup" })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-section", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("label", { children: "Accent color" }),
@@ -15737,8 +15790,11 @@ function App() {
             /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button small", onClick: () => void toggleKiosk(false), children: "Keluar kiosk" })
           ] }),
           queue.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "Belum ada sesi yang menunggu link." }) : queue.map((item) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-row", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: item.sessionId }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: item.status })
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: item.sessionId }),
+              item.lastError && /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: item.lastError })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button small", onClick: () => void retryUpload(item.sessionId), children: item.status === "failed" ? "Coba lagi" : item.status })
           ] }, item.sessionId))
         ] })
       ] }),
@@ -15852,7 +15908,30 @@ function App() {
           ] })
         ] })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button full", onClick: () => void resetStore(), children: "Reset demo data" })
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button full", onClick: () => void resetStore(), children: "Reset demo data" }),
+      !operatorUnlocked && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "operator-lock-overlay", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-lock-card", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "AKSES OPERATOR" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "Masukkan PIN" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            type: "password",
+            inputMode: "numeric",
+            maxLength: 8,
+            value: operatorPin,
+            onChange: (event) => {
+              setOperatorPin(event.target.value.replace(/\D/g, ""));
+              setOperatorPinError("");
+            },
+            onKeyDown: (event) => {
+              if (event.key === "Enter") unlockOperator();
+            },
+            autoFocus: true
+          }
+        ),
+        operatorPinError && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "error-text", children: operatorPinError }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button full", onClick: unlockOperator, children: "Buka operator" })
+      ] }) })
     ] }) }),
     shutterFlash && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "shutter-flash", "aria-hidden": "true" })
   ] });

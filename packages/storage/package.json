@@ -7,6 +7,10 @@
     "@photobooth/domain": "*"
   },
   "scripts": {
-    "typecheck": "tsc --project tsconfig.json --noEmit"
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.0"
   }
 }

@@ -41,7 +41,8 @@ export type SessionStatus =
   | "reviewing"
   | "saved_local"
   | "sync_pending"
-  | "published";
+  | "published"
+  | "cancelled";
 
 export interface StoredShot {
   shotIndex: number;
@@ -81,14 +82,17 @@ export interface BoothSettings {
   driveRootFolderName: string;
   slotOverrides: Record<string, TemplateSlot[]>;
   frameRevision: number;
+  operatorPin: string;
 }
 
 export interface QueueItem {
   sessionId: string;
-  status: "waiting" | "syncing" | "published";
+  status: "waiting" | "syncing" | "published" | "failed";
   createdAt: string;
   updatedAt: string;
   driveUrl?: string;
+  attempts?: number;
+  lastError?: string;
 }
 
 export interface CameraSource {
@@ -170,7 +174,8 @@ export const defaultSettings: BoothSettings = {
   autoResetSeconds: 60,
   driveRootFolderName: "Photobooth Sessions",
   slotOverrides: {},
-  frameRevision: 4
+  frameRevision: 4,
+  operatorPin: "2026"
 };
 
 export const templates: PhotoTemplate[] = [
@@ -267,8 +272,8 @@ export function getTemplate(templateId: string): PhotoTemplate {
   return template;
 }
 
-export function createSessionId(date = new Date()): string {
-  return `SESI-${date.getTime().toString(36).toUpperCase()}`;
+export function createSessionId(): string {
+  return `SESI-${globalThis.crypto.randomUUID().toUpperCase()}`;
 }
 
 export function buildShotColor(shotIndex: number, revision: number): string {

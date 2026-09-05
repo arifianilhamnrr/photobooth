@@ -5,10 +5,30 @@ type Bindings = {
   PHOTOBOOTH_BUCKET: R2Bucket;
   PHOTOBOOTH_DB: D1Database;
   PUBLIC_BASE_URL: string;
+  PHOTOBOOTH_API_KEY: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
 const QRIS_PAYLOAD = "00020101021126610016ID.CO.SHOPEE.WWW01189360091800228194190208228194190303UMI51440014ID.CO.QRIS.WWW0215ID10264932277260303UMI5204581753033605802ID5904ArSr6011PURBALINGGA61055337262070703A01630428C9";
+const SESSION_ID_PATTERN = /^SESI-[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/;
+
+function secureEqual(left: string, right: string): boolean {
+  if (left.length !== right.length) return false;
+  let difference = 0;
+  for (let index = 0; index < left.length; index += 1) difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  return difference === 0;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character]!);
+}
+
+app.use("/api/*", async (c, next) => {
+  const authorization = c.req.header("authorization") ?? "";
+  const expected = `Bearer ${c.env.PHOTOBOOTH_API_KEY}`;
+  if (!c.env.PHOTOBOOTH_API_KEY || !secureEqual(authorization, expected)) return c.json({ error: "Unauthorized" }, 401);
+  await next();
+});
 
 app.get("/health", (c) => c.json({ ok: true }));
 
@@ -31,10 +51,13 @@ app.get("/qris.svg", async (c) => {
 
 app.post("/api/sessions/init", async (c) => {
   const body = await c.req.json<{ sessionId: string; eventName: string; recipientEmail?: string }>();
+  if (!SESSION_ID_PATTERN.test(body.sessionId) || typeof body.eventName !== "string" || body.eventName.length < 1 || body.eventName.length > 100) {
+    return c.json({ error: "Invalid session" }, 400);
+  }
   const createdAt = new Date().toISOString();
   const publicUrl = `${c.env.PUBLIC_BASE_URL}/s/${body.sessionId}`;
   await c.env.PHOTOBOOTH_DB.prepare(
-    `INSERT OR REPLACE INTO sessions (id, event_name, created_at, recipient_email, strip_key, strip_url, photo_count, status, metadata_json)
+    `INSERT INTO sessions (id, event_name, created_at, recipient_email, strip_key, strip_url, photo_count, status, metadata_json)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     body.sessionId,
@@ -46,19 +69,31 @@ app.post("/api/sessions/init", async (c) => {
     0,
     "uploading",
     JSON.stringify({ originals: [], gif: false })
-  ).run();
+  ).run().catch(() => undefined);
+  const existing = await c.env.PHOTOBOOTH_DB.prepare("SELECT id FROM sessions WHERE id = ?").bind(body.sessionId).first();
+  if (!existing) return c.json({ error: "Session initialization failed" }, 500);
   return c.json({ sessionId: body.sessionId, folderUrl: publicUrl });
 });
 
 app.put("/api/sessions/:sessionId/files/:fileName", async (c) => {
   const sessionId = c.req.param("sessionId");
   const fileName = c.req.param("fileName");
-  if (!/^(strip\.jpg|slideshow\.gif|photo-\d{2}\.jpg)$/.test(fileName)) {
+  if (!SESSION_ID_PATTERN.test(sessionId) || !/^(strip\.jpg|slideshow\.gif)$/.test(fileName)) {
     return c.json({ error: "Invalid file name" }, 400);
   }
-  if (!c.req.raw.body) return c.json({ error: "Missing file body" }, 400);
+  const contentLength = Number(c.req.header("content-length") ?? 0);
+  const maxBytes = fileName.endsWith(".gif") ? 25 * 1024 * 1024 : 15 * 1024 * 1024;
+  if (!contentLength || contentLength > maxBytes) return c.json({ error: "Invalid file size" }, 413);
+  const session = await c.env.PHOTOBOOTH_DB.prepare("SELECT status FROM sessions WHERE id = ?").bind(sessionId).first<{ status: string }>();
+  if (!session || session.status === "published") return c.json({ error: "Session cannot accept uploads" }, 409);
+  const bytes = new Uint8Array(await c.req.arrayBuffer());
+  if (bytes.length !== contentLength || bytes.length > maxBytes) return c.json({ error: "Invalid file size" }, 413);
+  const validSignature = fileName.endsWith(".gif")
+    ? String.fromCharCode(...bytes.slice(0, 6)) === "GIF89a" || String.fromCharCode(...bytes.slice(0, 6)) === "GIF87a"
+    : bytes[0] === 0xff && bytes[1] === 0xd8;
+  if (!validSignature) return c.json({ error: "Invalid media" }, 415);
   const contentType = fileName.endsWith(".gif") ? "image/gif" : "image/jpeg";
-  await c.env.PHOTOBOOTH_BUCKET.put(`sessions/${sessionId}/${fileName}`, c.req.raw.body, {
+  await c.env.PHOTOBOOTH_BUCKET.put(`sessions/${sessionId}/${fileName}`, bytes, {
     httpMetadata: { contentType }
   });
   return c.json({ ok: true, fileName });
@@ -66,77 +101,23 @@ app.put("/api/sessions/:sessionId/files/:fileName", async (c) => {
 
 app.post("/api/sessions/:sessionId/complete", async (c) => {
   const sessionId = c.req.param("sessionId");
+  if (!SESSION_ID_PATTERN.test(sessionId)) return c.json({ error: "Invalid session" }, 400);
   const body = await c.req.json<{ originals: string[]; gif: boolean }>();
-  await c.env.PHOTOBOOTH_DB.prepare(
-    "UPDATE sessions SET photo_count = ?, status = ?, metadata_json = ? WHERE id = ?"
+  const [strip, gif] = await Promise.all([
+    c.env.PHOTOBOOTH_BUCKET.head(`sessions/${sessionId}/strip.jpg`),
+    c.env.PHOTOBOOTH_BUCKET.head(`sessions/${sessionId}/slideshow.gif`)
+  ]);
+  if (!strip || (body.gif && !gif)) return c.json({ error: "Media upload incomplete" }, 409);
+  const updated = await c.env.PHOTOBOOTH_DB.prepare(
+    "UPDATE sessions SET photo_count = ?, status = ?, metadata_json = ? WHERE id = ? AND status = 'uploading'"
   ).bind(
     body.originals.length,
     "published",
     JSON.stringify({ originals: body.originals, gif: body.gif, email: { status: "pending_desktop_delivery" } }),
     sessionId
   ).run();
+  if (!updated.meta.changes) return c.json({ error: "Session cannot be completed" }, 409);
   return c.json({ sessionId, folderUrl: `${c.env.PUBLIC_BASE_URL}/s/${sessionId}` });
-});
-
-app.post("/api/sessions", async (c) => {
-  const body = await c.req.json<{
-    sessionId: string;
-    eventName: string;
-    recipientEmail?: string;
-    stripBase64: string;
-    gifBase64?: string;
-    originals: Array<{ name: string; base64: string }>;
-  }>();
-
-  const createdAt = new Date().toISOString();
-  const folderPrefix = `sessions/${body.sessionId}`;
-  const stripKey = `${folderPrefix}/strip.jpg`;
-
-  await c.env.PHOTOBOOTH_BUCKET.put(stripKey, Uint8Array.from(atob(body.stripBase64), (char) => char.charCodeAt(0)), {
-    httpMetadata: {
-      contentType: "image/jpeg"
-    }
-  });
-
-  if (body.gifBase64) {
-    await c.env.PHOTOBOOTH_BUCKET.put(`${folderPrefix}/slideshow.gif`, Uint8Array.from(atob(body.gifBase64), (char) => char.charCodeAt(0)), {
-      httpMetadata: {
-        contentType: "image/gif"
-      }
-    });
-  }
-
-  for (const original of body.originals) {
-    await c.env.PHOTOBOOTH_BUCKET.put(`${folderPrefix}/${original.name}`, Uint8Array.from(atob(original.base64), (char) => char.charCodeAt(0)), {
-      httpMetadata: {
-        contentType: "image/jpeg"
-      }
-    });
-  }
-
-  const publicUrl = `${c.env.PUBLIC_BASE_URL}/s/${body.sessionId}`;
-
-  await c.env.PHOTOBOOTH_DB.prepare(
-    `INSERT OR REPLACE INTO sessions (id, event_name, created_at, recipient_email, strip_key, strip_url, photo_count, status, metadata_json)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  )
-    .bind(
-      body.sessionId,
-      body.eventName,
-      createdAt,
-      body.recipientEmail ?? null,
-      stripKey,
-      publicUrl,
-      body.originals.length,
-      "published",
-      JSON.stringify({ originals: body.originals.map((item) => item.name), gif: Boolean(body.gifBase64), email: { status: "pending_desktop_delivery" } })
-    )
-    .run();
-
-  return c.json({
-    sessionId: body.sessionId,
-    folderUrl: publicUrl
-  });
 });
 
 app.get("/s/:sessionId", async (c) => {
@@ -157,19 +138,21 @@ app.get("/s/:sessionId", async (c) => {
       metadata_json: string | null;
     }>();
 
-  if (!session) return c.notFound();
+  if (!session || session.status !== "published" || !SESSION_ID_PATTERN.test(sessionId)) return c.notFound();
 
   const stripObject = await c.env.PHOTOBOOTH_BUCKET.get(session.strip_key);
   const gifObject = await c.env.PHOTOBOOTH_BUCKET.get(`sessions/${session.id}/slideshow.gif`);
   const imageUrl = stripObject ? `${c.env.PUBLIC_BASE_URL}/assets/${session.id}/strip.jpg` : "";
   const gifUrl = gifObject ? `${c.env.PUBLIC_BASE_URL}/assets/${session.id}/slideshow.gif` : "";
 
+  const safeId = escapeHtml(session.id);
+  const safeEventName = escapeHtml(session.event_name);
   return c.html(`<!doctype html>
   <html lang="id">
     <head>
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <title>Photobooth ${session.id}</title>
+      <title>Photobooth ${safeId}</title>
       <style>
         body { margin: 0; font-family: Arial, sans-serif; background: #111315; color: #f2f1ed; display: grid; place-items: center; min-height: 100vh; }
         main { width: min(92vw, 560px); text-align: center; }
@@ -201,14 +184,13 @@ app.get("/s/:sessionId", async (c) => {
     <body>
       <main>
         <h1>Hasil photobooth kamu siap</h1>
-        <p>${session.event_name} · ${session.id}</p>
+        <p>${safeEventName} · ${safeId}</p>
         ${imageUrl ? `<img src="${imageUrl}" alt="Hasil strip photobooth" />` : "<p>Strip belum tersedia.</p>"}
         ${gifUrl ? `<img class="gif" src="${gifUrl}" alt="GIF animasi enam foto photobooth" />` : ""}
         <div class="actions">
           ${imageUrl ? `<a class="download donation-download" href="${c.env.PUBLIC_BASE_URL}/download/${session.id}/strip.jpg">Download foto</a>` : ""}
           ${gifUrl ? `<a class="download secondary donation-download" href="${c.env.PUBLIC_BASE_URL}/download/${session.id}/slideshow.gif">Download GIF</a>` : ""}
         </div>
-        ${session.recipient_email ? `<p>Link ini juga dikirim ke ${session.recipient_email}.</p>` : ""}
         <p>Gunakan tombol download untuk menyimpan hasil ke perangkatmu.</p>
       </main>
       <dialog id="donation-dialog" aria-labelledby="donation-title">
@@ -258,6 +240,9 @@ app.get("/s/:sessionId", async (c) => {
 app.get("/assets/:sessionId/:fileName", async (c) => {
   const sessionId = c.req.param("sessionId");
   const fileName = c.req.param("fileName");
+  if (!SESSION_ID_PATTERN.test(sessionId) || !/^(strip\.jpg|slideshow\.gif)$/.test(fileName)) return c.notFound();
+  const published = await c.env.PHOTOBOOTH_DB.prepare("SELECT id FROM sessions WHERE id = ? AND status = 'published'").bind(sessionId).first();
+  if (!published) return c.notFound();
   const object = await c.env.PHOTOBOOTH_BUCKET.get(`sessions/${sessionId}/${fileName}`);
   if (!object) return c.notFound();
   const headers = new Headers();
@@ -269,6 +254,9 @@ app.get("/assets/:sessionId/:fileName", async (c) => {
 app.get("/download/:sessionId/:fileName", async (c) => {
   const sessionId = c.req.param("sessionId");
   const fileName = c.req.param("fileName");
+  if (!SESSION_ID_PATTERN.test(sessionId) || !/^(strip\.jpg|slideshow\.gif)$/.test(fileName)) return c.notFound();
+  const published = await c.env.PHOTOBOOTH_DB.prepare("SELECT id FROM sessions WHERE id = ? AND status = 'published'").bind(sessionId).first();
+  if (!published) return c.notFound();
   const object = await c.env.PHOTOBOOTH_BUCKET.get(`sessions/${sessionId}/${fileName}`);
   if (!object) return c.notFound();
   const headers = new Headers();

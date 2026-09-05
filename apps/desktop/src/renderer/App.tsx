@@ -61,6 +61,9 @@ export default function App() {
   const [queueStatus, setQueueStatus] = useState("Siap memulai sesi baru");
   const [qrUrl, setQrUrl] = useState("");
   const [operatorOpen, setOperatorOpen] = useState(false);
+  const [operatorUnlocked, setOperatorUnlocked] = useState(false);
+  const [operatorPin, setOperatorPin] = useState("");
+  const [operatorPinError, setOperatorPinError] = useState("");
   const [cameraError, setCameraError] = useState<string>("");
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraLabel, setCameraLabel] = useState("Kamera belum dipilih");
@@ -80,6 +83,7 @@ export default function App() {
   const audioContextRef = useRef<AudioContext | null>(null);
   const captureCycleRef = useRef(0);
   const lastCountdownSoundRef = useRef("");
+  const sessionGenerationRef = useRef(0);
 
   const template = useMemo<PhotoTemplate>(() => {
     const base = getTemplate(session?.templateId ?? templateId);
@@ -107,6 +111,25 @@ export default function App() {
     window.photobooth.system.ping().then(() => setSystemStatus("Desktop siap dipakai")).catch(() => setSystemStatus("Main process tidak merespons"));
     void refreshSnapshot();
   }, []);
+
+  useEffect(() => {
+    const removePublished = window.photobooth.queue.onPublished((published) => {
+      setAllSessions((current) => [published, ...current.filter((item) => item.id !== published.id)]);
+      setQueue((current) => current.filter((item) => item.sessionId !== published.id));
+      if (session?.id === published.id) {
+        setSession(published);
+        setQueueStatus("Link publik dan QR sudah siap.");
+      }
+    });
+    const removeFailed = window.photobooth.queue.onFailed((failure) => {
+      void window.photobooth.queue.list().then(setQueue);
+      if (session?.id === failure.sessionId) setQueueStatus("Upload tertunda. Hasil lokal tetap aman dan bisa diunduh.");
+    });
+    return () => {
+      removePublished();
+      removeFailed();
+    };
+  }, [session?.id]);
 
   useEffect(() => window.photobooth.remote.onCommand((command) => {
     if (command === "new-session" && step === "welcome") void startSession();
@@ -220,8 +243,10 @@ export default function App() {
       setShutterFlash(true);
       window.setTimeout(() => setShutterFlash(false), 140);
       const countAsRetake = replaceIndex !== null && !retakeCountRecorded;
+      const generation = sessionGenerationRef.current;
       void window.photobooth.sessions.captureShot({ sessionId: session.id, shotIndex: targetIndex, dataUrl: dataUrl ?? undefined, countAsRetake })
         .then((nextSession) => {
+          if (generation !== sessionGenerationRef.current) return;
           setSession(nextSession);
           updateSessionCollection(nextSession);
           setCountdown(settings.countdownSeconds);
@@ -232,6 +257,7 @@ export default function App() {
           setStep("shot-review");
         })
         .catch((error: unknown) => {
+          if (generation !== sessionGenerationRef.current) return;
           const message = error instanceof Error ? error.message : "Gagal mengambil foto dari kamera.";
           setCaptureError(message);
           setCameraStatusMessage("Pengambilan foto gagal. Periksa koneksi kamera lalu coba lagi.");
@@ -243,6 +269,12 @@ export default function App() {
 
     return () => clearTimeout(timer);
   }, [cameraReady, captureCount, captureIndex, countdown, replaceIndex, selectedCameraSourceId, session, settings.countdownSeconds, step]);
+
+  useEffect(() => {
+    if (step !== "result") return;
+    const timer = window.setTimeout(() => resetToWelcome(), settings.autoResetSeconds * 1000);
+    return () => window.clearTimeout(timer);
+  }, [settings.autoResetSeconds, step]);
 
   useEffect(() => {
     if (!cameraActive) {
@@ -416,6 +448,7 @@ export default function App() {
   }
 
   async function startSession() {
+    sessionGenerationRef.current += 1;
     const defaultTemplateId = templates.find((item) => item.id === "frame-3")?.id ?? templates[0].id;
     const defaultFilterId: FilterId = "original";
     const defaultCaptureCount: 3 | 6 = 6;
@@ -542,21 +575,20 @@ export default function App() {
     setStep("saving");
     setQueueStatus("Foto kamu sudah aman. Sedang mengunggah hasil.");
     try {
-      const published = await window.photobooth.sessions.publish({ sessionId: preparedSession.id });
-      setSession(published);
-      updateSessionCollection(published);
+      const pending = await window.photobooth.sessions.publish({ sessionId: preparedSession.id });
+      setSession(pending);
+      updateSessionCollection(pending);
       setQueue((current) => {
         const nextItem: QueueItem = {
-          sessionId: published.id,
-          status: "published",
-          createdAt: published.createdAt,
-          updatedAt: published.updatedAt,
-          driveUrl: published.driveUrl
+          sessionId: pending.id,
+          status: "waiting",
+          createdAt: pending.createdAt,
+          updatedAt: pending.updatedAt
         };
-        return [nextItem, ...current.filter((item) => item.sessionId !== published.id)];
+        return [nextItem, ...current.filter((item) => item.sessionId !== pending.id)];
       });
       setStep("result");
-      setQueueStatus("Link hasil dan QR sudah siap.");
+      setQueueStatus("Hasil lokal siap. Upload berjalan otomatis di background.");
     } catch (error) {
       setEmailError(error instanceof Error ? error.message : "Upload gagal. Coba lagi.");
       setStep("review");
@@ -623,6 +655,11 @@ export default function App() {
   }
 
   function resetToWelcome() {
+    sessionGenerationRef.current += 1;
+    const currentSessionId = session?.id;
+    if (currentSessionId && session.status !== "published" && session.status !== "sync_pending") {
+      void window.photobooth.sessions.cancel({ sessionId: currentSessionId });
+    }
     setSession(null);
     setQrUrl("");
     setReplaceIndex(null);
@@ -646,12 +683,36 @@ export default function App() {
   }
 
   async function resetStore() {
+    if (!window.confirm("Reset database sesi lokal? File foto di disk tidak ikut dihapus.")) return;
     await window.photobooth.debug.reset();
     setSession(null);
     setStep("welcome");
     setQrUrl("");
     setQueueStatus("Data lokal direset untuk demo.");
     await refreshSnapshot();
+  }
+
+  function closeOperator() {
+    setOperatorOpen(false);
+    setOperatorUnlocked(false);
+    setOperatorPin("");
+    setOperatorPinError("");
+  }
+
+  function unlockOperator() {
+    if (operatorPin === settings.operatorPin) {
+      setOperatorUnlocked(true);
+      setOperatorPin("");
+      setOperatorPinError("");
+      return;
+    }
+    setOperatorPin("");
+    setOperatorPinError("PIN operator salah.");
+  }
+
+  async function retryUpload(sessionId: string) {
+    await window.photobooth.queue.retry(sessionId);
+    setQueue(await window.photobooth.queue.list());
   }
 
   async function signInDrive() {
@@ -1082,10 +1143,10 @@ export default function App() {
             </div>
           </div>
           <div className="qr-panel">
-            <p className="eyebrow">QR SIAP</p>
-            <h2>Scan untuk ambil fotomu.</h2>
-            <p className="body small">Link hasil sesi {session.id} sudah siap. Scan QR untuk melihat dan download fotomu.</p>
-            {qrUrl ? <img className="qr-image" src={qrUrl} alt="QR untuk membuka hasil photobooth" /> : <div className="qr-placeholder" />}
+            <p className="eyebrow">{session.driveUrl ? "QR SIAP" : "HASIL LOKAL SIAP"}</p>
+            <h2>{session.driveUrl ? "Scan untuk ambil fotomu." : "Upload berjalan di background."}</h2>
+            <p className="body small">{session.driveUrl ? `Link hasil sesi ${session.id} sudah siap.` : "Strip dan GIF sudah aman di laptop. QR publik muncul otomatis setelah internet tersedia."}</p>
+            {qrUrl ? <img className="qr-image" src={qrUrl} alt="QR untuk membuka hasil photobooth" /> : <div className="qr-placeholder"><span>Menunggu link publik</span></div>}
             <div className="optional-email-box">
               <strong>{emailSent ? "Email berhasil dikirim" : "Kirim link ke email? (opsional)"}</strong>
               {!emailSent && (
@@ -1097,7 +1158,7 @@ export default function App() {
                     onChange={(event) => { setRecipientEmail(event.target.value); setEmailError(""); }}
                     placeholder="nama@email.com"
                   />
-                  <button className="secondary-button" disabled={emailSending} onClick={() => void sendOptionalEmail()}>
+                  <button className="secondary-button" disabled={emailSending || !session.driveUrl} onClick={() => void sendOptionalEmail()}>
                     {emailSending ? "Mengirim..." : "Kirim email"}
                   </button>
                 </div>
@@ -1117,7 +1178,7 @@ export default function App() {
       )}
 
       {operatorOpen && (
-        <div className="operator-scrim" onClick={() => setOperatorOpen(false)}>
+        <div className="operator-scrim" onClick={closeOperator}>
           <aside className="operator-panel" onClick={(event) => event.stopPropagation()}>
             <div className="operator-header">
               <div>
@@ -1125,7 +1186,7 @@ export default function App() {
                 <h3>Booth control</h3>
                 <p className="operator-help">Atur kamera, publish, dan mode kiosk tanpa mengganggu alur tamu.</p>
               </div>
-              <button className="secondary-button small operator-close" onClick={() => setOperatorOpen(false)}>Tutup</button>
+              <button className="secondary-button small operator-close" onClick={closeOperator}>Tutup</button>
             </div>
             <div className="operator-section">
               <label>Accent color</label>
@@ -1159,8 +1220,8 @@ export default function App() {
                 </div>
                 {queue.length === 0 ? <p>Belum ada sesi yang menunggu link.</p> : queue.map((item) => (
                   <div className="operator-row" key={item.sessionId}>
-                    <strong>{item.sessionId}</strong>
-                    <span>{item.status}</span>
+                    <div><strong>{item.sessionId}</strong>{item.lastError && <small>{item.lastError}</small>}</div>
+                    <button className="secondary-button small" onClick={() => void retryUpload(item.sessionId)}>{item.status === "failed" ? "Coba lagi" : item.status}</button>
                   </div>
                 ))}
               </div>
@@ -1278,6 +1339,25 @@ export default function App() {
               </div>
             </div>
             <button className="secondary-button full" onClick={() => void resetStore()}>Reset demo data</button>
+            {!operatorUnlocked && (
+              <div className="operator-lock-overlay">
+                <div className="operator-lock-card">
+                  <p className="eyebrow">AKSES OPERATOR</p>
+                  <h3>Masukkan PIN</h3>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={8}
+                    value={operatorPin}
+                    onChange={(event) => { setOperatorPin(event.target.value.replace(/\D/g, "")); setOperatorPinError(""); }}
+                    onKeyDown={(event) => { if (event.key === "Enter") unlockOperator(); }}
+                    autoFocus
+                  />
+                  {operatorPinError && <p className="error-text">{operatorPinError}</p>}
+                  <button className="primary-button full" onClick={unlockOperator}>Buka operator</button>
+                </div>
+              </div>
+            )}
           </aside>
         </div>
       )}

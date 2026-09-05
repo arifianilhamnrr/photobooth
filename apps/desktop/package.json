@@ -17,7 +17,7 @@
     "build": "electron-vite build",
     "dist": "npm run build && electron-builder",
     "typecheck": "tsc --project tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@photobooth/camera": "*",

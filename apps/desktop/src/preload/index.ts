@@ -49,10 +49,22 @@ contextBridge.exposeInMainWorld("photobooth", {
     captureShot: (input: { sessionId: string; shotIndex: number; dataUrl?: string; countAsRetake?: boolean }) => ipcRenderer.invoke("session:capture-shot", input) as Promise<StoredSession>,
     prepare: (input: { sessionId: string }) => ipcRenderer.invoke("session:prepare", input) as Promise<StoredSession>,
     publish: (input: { sessionId: string }) => ipcRenderer.invoke("session:publish", input) as Promise<StoredSession>,
-    sendEmail: (input: { sessionId: string; recipientEmail: string }) => ipcRenderer.invoke("session:send-email", input) as Promise<StoredSession>
+    sendEmail: (input: { sessionId: string; recipientEmail: string }) => ipcRenderer.invoke("session:send-email", input) as Promise<StoredSession>,
+    cancel: (input: { sessionId: string }) => ipcRenderer.invoke("session:cancel", input) as Promise<StoredSession>
   },
   queue: {
-    list: () => ipcRenderer.invoke("queue:list") as Promise<QueueItem[]>
+    list: () => ipcRenderer.invoke("queue:list") as Promise<QueueItem[]>,
+    retry: (sessionId: string) => ipcRenderer.invoke("queue:retry", sessionId) as Promise<{ ok: boolean }>,
+    onPublished: (listener: (session: StoredSession) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, session: StoredSession) => listener(session);
+      ipcRenderer.on("sync:published", handler);
+      return () => ipcRenderer.removeListener("sync:published", handler);
+    },
+    onFailed: (listener: (failure: { sessionId: string; error: string }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, failure: { sessionId: string; error: string }) => listener(failure);
+      ipcRenderer.on("sync:failed", handler);
+      return () => ipcRenderer.removeListener("sync:failed", handler);
+    }
   },
   debug: {
     reset: () => ipcRenderer.invoke("store:reset") as Promise<{ ok: boolean }>
@@ -106,9 +118,13 @@ declare global {
         prepare(input: { sessionId: string }): Promise<StoredSession>;
         publish(input: { sessionId: string }): Promise<StoredSession>;
         sendEmail(input: { sessionId: string; recipientEmail: string }): Promise<StoredSession>;
+        cancel(input: { sessionId: string }): Promise<StoredSession>;
       };
       queue: {
         list(): Promise<QueueItem[]>;
+        retry(sessionId: string): Promise<{ ok: boolean }>;
+        onPublished(listener: (session: StoredSession) => void): () => void;
+        onFailed(listener: (failure: { sessionId: string; error: string }) => void): () => void;
       };
       debug: {
         reset(): Promise<{ ok: boolean }>;

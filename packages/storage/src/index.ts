@@ -112,6 +112,18 @@ export function openDatabase(filePath: string): DatabaseSync {
       PRIMARY KEY (session_id, shot_index),
       FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS sync_jobs (
+      session_id TEXT PRIMARY KEY,
+      status TEXT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      next_attempt_at TEXT NOT NULL,
+      lease_until TEXT,
+      last_error TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+    );
   `);
 
   const row = database.prepare("SELECT settings_json FROM app_settings WHERE id = 1").get() as { settings_json: string } | undefined;
@@ -299,4 +311,80 @@ export function upsertSessionInDatabase(database: DatabaseSync, session: StoredS
   }
 
   return session;
+}
+
+export interface SyncJob {
+  sessionId: string;
+  attempts: number;
+}
+
+export function enqueueSyncJob(database: DatabaseSync, sessionId: string): void {
+  const now = new Date().toISOString();
+  database.prepare(`
+    INSERT INTO sync_jobs (session_id, status, attempts, next_attempt_at, created_at, updated_at)
+    VALUES (?, 'pending', 0, ?, ?, ?)
+    ON CONFLICT(session_id) DO UPDATE SET
+      status = 'pending', next_attempt_at = excluded.next_attempt_at,
+      lease_until = NULL, last_error = NULL, updated_at = excluded.updated_at
+  `).run(sessionId, now, now, now);
+}
+
+export function claimNextSyncJob(database: DatabaseSync): SyncJob | null {
+  const now = new Date();
+  const nowIso = now.toISOString();
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    const row = database.prepare(`
+      SELECT session_id, attempts FROM sync_jobs
+      WHERE status IN ('pending', 'failed') AND next_attempt_at <= ?
+        AND (lease_until IS NULL OR lease_until < ?)
+      ORDER BY created_at ASC LIMIT 1
+    `).get(nowIso, nowIso) as { session_id: string; attempts: number } | undefined;
+    if (!row) {
+      database.exec("COMMIT");
+      return null;
+    }
+    database.prepare("UPDATE sync_jobs SET status = 'running', lease_until = ?, updated_at = ? WHERE session_id = ?")
+      .run(new Date(now.getTime() + 120_000).toISOString(), nowIso, row.session_id);
+    database.exec("COMMIT");
+    return { sessionId: row.session_id, attempts: row.attempts };
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+export function completeSyncJob(database: DatabaseSync, sessionId: string): void {
+  database.prepare("DELETE FROM sync_jobs WHERE session_id = ?").run(sessionId);
+}
+
+export function failSyncJob(database: DatabaseSync, sessionId: string, attempts: number, error: string): void {
+  const now = new Date();
+  const delay = Math.min(15 * 60_000, 5_000 * 3 ** Math.min(attempts, 5));
+  database.prepare(`
+    UPDATE sync_jobs SET status = 'failed', attempts = ?, next_attempt_at = ?,
+      lease_until = NULL, last_error = ?, updated_at = ? WHERE session_id = ?
+  `).run(attempts, new Date(now.getTime() + delay).toISOString(), error.slice(0, 500), now.toISOString(), sessionId);
+}
+
+export function listSyncQueue(database: DatabaseSync): QueueItem[] {
+  return database.prepare(`
+    SELECT j.session_id, j.status, j.attempts, j.last_error, j.created_at, j.updated_at, s.drive_url
+    FROM sync_jobs j JOIN sessions s ON s.id = j.session_id ORDER BY j.created_at ASC
+  `).all().map((value) => {
+    const row = value as { session_id: string; status: string; attempts: number; last_error: string | null; created_at: string; updated_at: string; drive_url: string | null };
+    return {
+      sessionId: row.session_id,
+      status: row.status === "running" ? "syncing" : row.status === "failed" ? "failed" : "waiting",
+      attempts: row.attempts,
+      lastError: row.last_error ?? undefined,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      driveUrl: row.drive_url ?? undefined
+    } as QueueItem;
+  });
+}
+
+export function recoverSyncJobs(database: DatabaseSync): void {
+  database.prepare("UPDATE sync_jobs SET status = 'pending', lease_until = NULL WHERE status = 'running'").run();
 }

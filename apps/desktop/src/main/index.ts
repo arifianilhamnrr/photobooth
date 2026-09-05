@@ -25,16 +25,28 @@ import {
   type StoredShot
 } from "@photobooth/domain";
 import {
+  claimNextSyncJob,
+  completeSyncJob,
+  enqueueSyncJob,
   ensureSessionDirectories,
+  failSyncJob,
+  listSyncQueue,
   openDatabase,
-  queueFromSessions,
   readSnapshotFromDatabase,
+  recoverSyncJobs,
   upsertSessionInDatabase,
   writeDataUrlToFile,
   writeSettingsToDatabase
 } from "@photobooth/storage";
 
 let mainWindow: BrowserWindow | null = null;
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) app.quit();
+app.on("second-instance", () => {
+  if (!mainWindow) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.focus();
+});
 const databasePath = join(app.getPath("userData"), "photobooth.sqlite");
 const sessionsBaseDir = join(app.getPath("userData"), "sessions");
 const stripRendererPath = app.isPackaged
@@ -48,6 +60,8 @@ const iconPath = join(app.getAppPath(), "resources", process.platform === "win32
 const execFileAsync = promisify(execFile);
 let selectedCameraSourceId = "webcam:default";
 let database = openDatabase(databasePath);
+let syncWorkerRunning = false;
+let syncWorkerTimer: NodeJS.Timeout | null = null;
 let gphotoQueue: Promise<void> = Promise.resolve();
 let gphotoLiveView: {
   sourceId: string;
@@ -73,7 +87,10 @@ function loadUserEnvironment(): void {
 
 loadUserEnvironment();
 
-const cloudflareService = new CloudflareUploadService(process.env.PHOTOBOOTH_CLOUD_URL ?? "https://photobooth.collaborationday2026.web.id");
+const cloudflareService = new CloudflareUploadService(
+  process.env.PHOTOBOOTH_CLOUD_URL ?? "https://photobooth.collaborationday2026.web.id",
+  process.env.PHOTOBOOTH_API_KEY
+);
 const brevoEmailService = new BrevoEmailService({
   apiKey: process.env.BREVO_API_KEY,
   smtpLogin: process.env.BREVO_SMTP_LOGIN,
@@ -111,6 +128,10 @@ interface PublishSessionInput {
 interface SendSessionEmailInput {
   sessionId: string;
   recipientEmail: string;
+}
+
+interface CancelSessionInput {
+  sessionId: string;
 }
 
 interface UpdateSessionConfigInput {
@@ -261,7 +282,7 @@ function getGphotoLiveViewFrame(sourceId: string): { dataUrl?: string; error?: s
 
 async function initializePersistence() {
   await mkdir(app.getPath("userData"), { recursive: true });
-  database = openDatabase(databasePath);
+  recoverSyncJobs(database);
 }
 
 async function saveSession(session: StoredSession) {
@@ -366,14 +387,35 @@ async function simulatePublish(sessionId: string): Promise<StoredSession> {
     return published;
   }
 
-  await new Promise((resolve) => setTimeout(resolve, 1600));
+  throw new Error("Belum ada tujuan upload yang dikonfigurasi");
+}
 
-  const published = updateSession(syncing, {
-    status: "published",
-    driveUrl: `https://drive.google.com/drive/folders/mock-${sessionId.toLowerCase()}`
-  });
-  await saveSession(published);
-  return published;
+function scheduleSyncWorker(delay = 0): void {
+  if (syncWorkerTimer) clearTimeout(syncWorkerTimer);
+  syncWorkerTimer = setTimeout(() => void processSyncQueue(), delay);
+}
+
+async function processSyncQueue(): Promise<void> {
+  if (syncWorkerRunning) return;
+  syncWorkerRunning = true;
+  try {
+    let job = claimNextSyncJob(database);
+    while (job) {
+      try {
+        const published = await simulatePublish(job.sessionId);
+        completeSyncJob(database, job.sessionId);
+        mainWindow?.webContents.send("sync:published", published);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        failSyncJob(database, job.sessionId, job.attempts + 1, message);
+        mainWindow?.webContents.send("sync:failed", { sessionId: job.sessionId, error: message });
+      }
+      job = claimNextSyncJob(database);
+    }
+  } finally {
+    syncWorkerRunning = false;
+    scheduleSyncWorker(10_000);
+  }
 }
 
 function isValidEmail(email: string): boolean {
@@ -399,7 +441,15 @@ async function createWindow() {
     }
   });
 
-  const rendererUrl = process.env.ELECTRON_RENDERER_URL;
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  mainWindow.webContents.on("will-navigate", (event, targetUrl) => {
+    const allowed = !app.isPackaged && /^http:\/\/(localhost|127\.0\.0\.1):5173\/?/.test(targetUrl);
+    if (!allowed) event.preventDefault();
+  });
+
+  const rendererUrl = !app.isPackaged && /^http:\/\/(localhost|127\.0\.0\.1):5173\/?/.test(process.env.ELECTRON_RENDERER_URL ?? "")
+    ? process.env.ELECTRON_RENDERER_URL
+    : undefined;
   if (rendererUrl) {
     await mainWindow.loadURL(rendererUrl);
     return;
@@ -408,16 +458,20 @@ async function createWindow() {
   await mainWindow.loadFile(join(app.getAppPath(), "out", "renderer", "index.html"));
 }
 
-app.whenReady().then(() => {
-  void initializePersistence();
-  void remoteServer.start();
+app.whenReady().then(async () => {
+  if (!hasSingleInstanceLock) return;
+  await initializePersistence();
+  scheduleSyncWorker();
+  await remoteServer.start().catch((error) => {
+    console.error("Remote server failed to start", error);
+  });
   ipcMain.handle("system:ping", async () => ({ ok: true }));
   ipcMain.handle("app:snapshot", async () => {
     const store = readSnapshotFromDatabase(database);
     return {
       settings: store.settings,
       sessions: store.sessions,
-      queue: queueFromSessions(store.sessions),
+      queue: listSyncQueue(database),
       cameraSources: await listCameraSources(),
       selectedCameraSourceId,
       driveStatus: await driveService.getStatus(),
@@ -430,7 +484,7 @@ app.whenReady().then(() => {
   });
   ipcMain.handle("session:create", async (_event, input: CreateSessionInput) => {
     const now = new Date().toISOString();
-    const sessionId = createSessionId(new Date());
+    const sessionId = createSessionId();
     const { sessionDir } = await ensureSessionDirectories(sessionsBaseDir, sessionId);
     const session: StoredSession = {
       id: basename(sessionDir),
@@ -479,8 +533,11 @@ app.whenReady().then(() => {
   ipcMain.handle("session:publish", async (_event, input: PublishSessionInput) => {
     const session = await getSession(input.sessionId);
     const rendered = session.finalStripPath ? session : await renderFinalStripForSession(session);
-    await saveSession(rendered);
-    return simulatePublish(input.sessionId);
+    const pending = updateSession(rendered, { status: "sync_pending", driveUrl: undefined });
+    await saveSession(pending);
+    enqueueSyncJob(database, pending.id);
+    scheduleSyncWorker();
+    return pending;
   });
   ipcMain.handle("session:prepare", async (_event, input: PublishSessionInput) => {
     const session = await getSession(input.sessionId);
@@ -505,6 +562,12 @@ app.whenReady().then(() => {
     await saveSession(updated);
     return updated;
   });
+  ipcMain.handle("session:cancel", async (_event, input: CancelSessionInput) => {
+    const session = await getSession(input.sessionId);
+    if (session.status === "published") return session;
+    const cancelled = updateSession(session, { status: "cancelled" });
+    return saveSession(cancelled);
+  });
   ipcMain.handle("session:update-config", async (_event, input: UpdateSessionConfigInput) => {
     const session = await getSession(input.sessionId);
     const nextSession = updateSession(session, {
@@ -525,8 +588,12 @@ app.whenReady().then(() => {
     return saveSession(rendered);
   });
   ipcMain.handle("queue:list", async (): Promise<QueueItem[]> => {
-    const store = readSnapshotFromDatabase(database);
-    return queueFromSessions(store.sessions);
+    return listSyncQueue(database);
+  });
+  ipcMain.handle("queue:retry", async (_event, sessionId: string) => {
+    enqueueSyncJob(database, sessionId);
+    scheduleSyncWorker();
+    return { ok: true };
   });
   ipcMain.handle("camera:list-sources", async () => listCameraSources());
   ipcMain.handle("camera:start-live-view", async (_event, sourceId: string) => startGphotoLiveView(sourceId));

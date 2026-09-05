@@ -2,20 +2,24 @@ import { readFile } from "node:fs/promises";
 import type { CloudStatus, StoredSession } from "@photobooth/domain";
 
 export class CloudflareUploadService {
-  constructor(private readonly baseUrl?: string) {}
+  constructor(
+    private readonly baseUrl?: string,
+    private readonly apiKey?: string
+  ) {}
 
   getStatus(): CloudStatus {
-    if (!this.baseUrl) return { mode: "unconfigured" };
+    if (!this.baseUrl || !this.apiKey) return { mode: "unconfigured" };
     return { mode: "configured", baseUrl: this.baseUrl };
   }
 
   async publishSession(session: StoredSession, eventName: string): Promise<{ folderUrl: string }> {
-    if (!this.baseUrl) throw new Error("Cloudflare upload belum dikonfigurasi");
+    if (!this.baseUrl || !this.apiKey) throw new Error("Cloudflare upload belum dikonfigurasi");
     if (!session.finalStripPath) throw new Error("Strip final belum tersedia");
     const initResponse = await fetch(`${this.baseUrl}/api/sessions/init`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${this.apiKey}`
       },
       body: JSON.stringify({
         sessionId: session.id,
@@ -34,7 +38,10 @@ export class CloudflareUploadService {
       const bytes = await readFile(file.path);
       const uploadResponse = await fetch(`${this.baseUrl}/api/sessions/${encodeURIComponent(session.id)}/files/${file.name}`, {
         method: "PUT",
-        headers: { "Content-Type": file.name.endsWith(".gif") ? "image/gif" : "image/jpeg" },
+        headers: {
+          "Content-Type": file.name.endsWith(".gif") ? "image/gif" : "image/jpeg",
+          "Authorization": `Bearer ${this.apiKey}`
+        },
         body: new Uint8Array(bytes)
       });
       if (!uploadResponse.ok) throw new Error(`Cloudflare gagal upload ${file.name}: ${uploadResponse.status}`);
@@ -42,7 +49,10 @@ export class CloudflareUploadService {
 
     const completeResponse = await fetch(`${this.baseUrl}/api/sessions/${encodeURIComponent(session.id)}/complete`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${this.apiKey}`
+      },
       body: JSON.stringify({ originals: [], gif: Boolean(session.finalGifPath) })
     });
     if (!completeResponse.ok) throw new Error(`Cloudflare gagal menyelesaikan sesi: ${completeResponse.status}`);
