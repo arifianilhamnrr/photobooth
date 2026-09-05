@@ -11,10 +11,12 @@
     "db:migrate:remote": "wrangler d1 execute photobooth-cloud --remote --file ./schema.sql"
   },
   "dependencies": {
-    "hono": "^4.13.5"
+    "hono": "^4.13.5",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260904.1",
+    "@types/qrcode": "^1.5.5",
     "typescript": "^5.9.3"
   }
 }

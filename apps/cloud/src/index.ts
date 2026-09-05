@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import QRCode from "qrcode";
 
 type Bindings = {
   PHOTOBOOTH_BUCKET: R2Bucket;
@@ -7,8 +8,26 @@ type Bindings = {
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
+const QRIS_PAYLOAD = "00020101021126610016ID.CO.SHOPEE.WWW01189360091800228194190208228194190303UMI51440014ID.CO.QRIS.WWW0215ID10264932277260303UMI5204581753033605802ID5904ArSr6011PURBALINGGA61055337262070703A01630428C9";
 
 app.get("/health", (c) => c.json({ ok: true }));
+
+app.get("/qris.svg", async (c) => {
+  const svg = await QRCode.toString(QRIS_PAYLOAD, {
+    type: "svg",
+    errorCorrectionLevel: "M",
+    margin: 2,
+    width: 640,
+    color: {
+      dark: "#111315",
+      light: "#ffffff"
+    }
+  });
+  return c.body(svg, 200, {
+    "content-type": "image/svg+xml; charset=utf-8",
+    "cache-control": "public, max-age=86400"
+  });
+});
 
 app.post("/api/sessions/init", async (c) => {
   const body = await c.req.json<{ sessionId: string; eventName: string; recipientEmail?: string }>();
@@ -161,6 +180,17 @@ app.get("/s/:sessionId", async (c) => {
         a { color: #ff7048; }
         .download { display: inline-block; padding: 14px 20px; border-radius: 12px; background: #ff7048; color: #15110f; text-decoration: none; font-weight: 700; }
         .download.secondary { background: #2b2f33; color: #f2f1ed; }
+        dialog { width: min(92vw, 440px); padding: 0; border: 1px solid #34383c; border-radius: 22px; background: #181a1c; color: #f2f1ed; box-shadow: 0 30px 100px rgba(0,0,0,.48); }
+        dialog::backdrop { background: rgba(8,9,10,.76); backdrop-filter: blur(6px); }
+        .donation { padding: 24px; text-align: center; }
+        .donation h2 { margin: 0; font-size: 28px; }
+        .donation p { margin: 10px auto 18px; max-width: 36ch; }
+        .qris { width: min(76vw, 300px); margin: 0 auto; padding: 10px; border-radius: 16px; background: white; box-shadow: none; }
+        .donation-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+        .donation-actions button { min-height: 48px; padding: 0 14px; border: 0; border-radius: 12px; font: inherit; font-weight: 700; cursor: pointer; }
+        .continue-download { background: #ff7048; color: #15110f; }
+        .skip-download { background: #2b2f33; color: #f2f1ed; }
+        .donation-note { display: block; margin-top: 12px; color: #83898d; font-size: 12px; }
       </style>
     </head>
     <body>
@@ -170,12 +200,46 @@ app.get("/s/:sessionId", async (c) => {
         ${imageUrl ? `<img src="${imageUrl}" alt="Hasil strip photobooth" />` : "<p>Strip belum tersedia.</p>"}
         ${gifUrl ? `<img class="gif" src="${gifUrl}" alt="GIF animasi enam foto photobooth" />` : ""}
         <div class="actions">
-          ${imageUrl ? `<a class="download" href="${c.env.PUBLIC_BASE_URL}/download/${session.id}/strip.jpg">Download foto</a>` : ""}
-          ${gifUrl ? `<a class="download secondary" href="${c.env.PUBLIC_BASE_URL}/download/${session.id}/slideshow.gif">Download GIF</a>` : ""}
+          ${imageUrl ? `<a class="download donation-download" href="${c.env.PUBLIC_BASE_URL}/download/${session.id}/strip.jpg">Download foto</a>` : ""}
+          ${gifUrl ? `<a class="download secondary donation-download" href="${c.env.PUBLIC_BASE_URL}/download/${session.id}/slideshow.gif">Download GIF</a>` : ""}
         </div>
         ${session.recipient_email ? `<p>Link ini juga dikirim ke ${session.recipient_email}.</p>` : ""}
         <p>Gunakan tombol download untuk menyimpan hasil ke perangkatmu.</p>
       </main>
+      <dialog id="donation-dialog" aria-labelledby="donation-title">
+        <div class="donation">
+          <h2 id="donation-title">Dukung photobooth ini</h2>
+          <p>Kalau berkenan, kamu bisa berdonasi seikhlasnya lewat QRIS. Download tetap gratis.</p>
+          <img class="qris" src="${c.env.PUBLIC_BASE_URL}/qris.svg" alt="QRIS donasi seikhlasnya" />
+          <div class="donation-actions">
+            <button class="skip-download" type="button">Lewati & download</button>
+            <button class="continue-download" type="button">Lanjut download</button>
+          </div>
+          <small class="donation-note">Tidak ada nominal minimum dan tidak ada verifikasi pembayaran.</small>
+        </div>
+      </dialog>
+      <script>
+        const dialog = document.getElementById('donation-dialog');
+        let pendingDownload = '';
+        document.querySelectorAll('.donation-download').forEach((link) => {
+          link.addEventListener('click', (event) => {
+            event.preventDefault();
+            pendingDownload = link.href;
+            dialog.showModal();
+          });
+        });
+        function continueDownload() {
+          const url = pendingDownload;
+          pendingDownload = '';
+          dialog.close();
+          if (url) window.location.href = url;
+        }
+        dialog.querySelector('.continue-download').addEventListener('click', continueDownload);
+        dialog.querySelector('.skip-download').addEventListener('click', continueDownload);
+        dialog.addEventListener('click', (event) => {
+          if (event.target === dialog) dialog.close();
+        });
+      </script>
     </body>
   </html>`);
 });
