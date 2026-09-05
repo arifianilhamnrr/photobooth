@@ -33,8 +33,8 @@ contextBridge.exposeInMainWorld("photobooth", {
     disableHotspot: () => ipcRenderer.invoke("remote:disable-hotspot") as Promise<RemoteStatus>,
     updateState: (state: RemoteSessionState & { stripPath?: string; gifPath?: string }) => ipcRenderer.invoke("remote:update-state", state) as Promise<{ ok: boolean }>,
     updatePreview: (dataUrl?: string) => ipcRenderer.invoke("remote:update-preview", dataUrl) as Promise<{ ok: boolean }>,
-    onCommand: (listener: (command: "start" | "accept" | "retake") => void) => {
-      const handler = (_event: Electron.IpcRendererEvent, command: "start" | "accept" | "retake") => listener(command);
+    onCommand: (listener: (command: string) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, command: string) => listener(command);
       ipcRenderer.on("remote:command", handler);
       return () => ipcRenderer.removeListener("remote:command", handler);
     }
@@ -47,6 +47,7 @@ contextBridge.exposeInMainWorld("photobooth", {
     updateConfig: (input: { sessionId: string; templateId: string; filterId: StoredSession["filterId"] }) => ipcRenderer.invoke("session:update-config", input) as Promise<StoredSession>,
     applyFilter: (input: { sessionId: string; filterId: StoredSession["filterId"] }) => ipcRenderer.invoke("session:apply-filter", input) as Promise<StoredSession>,
     captureShot: (input: { sessionId: string; shotIndex: number; dataUrl?: string; countAsRetake?: boolean }) => ipcRenderer.invoke("session:capture-shot", input) as Promise<StoredSession>,
+    prepare: (input: { sessionId: string }) => ipcRenderer.invoke("session:prepare", input) as Promise<StoredSession>,
     publish: (input: { sessionId: string }) => ipcRenderer.invoke("session:publish", input) as Promise<StoredSession>,
     sendEmail: (input: { sessionId: string; recipientEmail: string }) => ipcRenderer.invoke("session:send-email", input) as Promise<StoredSession>
   },
@@ -92,7 +93,7 @@ declare global {
         disableHotspot(): Promise<RemoteStatus>;
         updateState(state: RemoteSessionState & { stripPath?: string; gifPath?: string }): Promise<{ ok: boolean }>;
         updatePreview(dataUrl?: string): Promise<{ ok: boolean }>;
-        onCommand(listener: (command: "start" | "accept" | "retake") => void): () => void;
+        onCommand(listener: (command: string) => void): () => void;
       };
       settings: {
         update(settings: Partial<BoothSettings>): Promise<BoothSettings>;
@@ -102,6 +103,7 @@ declare global {
         updateConfig(input: { sessionId: string; templateId: string; filterId: StoredSession["filterId"] }): Promise<StoredSession>;
         applyFilter(input: { sessionId: string; filterId: StoredSession["filterId"] }): Promise<StoredSession>;
         captureShot(input: { sessionId: string; shotIndex: number; dataUrl?: string; countAsRetake?: boolean }): Promise<StoredSession>;
+        prepare(input: { sessionId: string }): Promise<StoredSession>;
         publish(input: { sessionId: string }): Promise<StoredSession>;
         sendEmail(input: { sessionId: string; recipientEmail: string }): Promise<StoredSession>;
       };

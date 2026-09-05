@@ -103,6 +103,8 @@ export default function App() {
     if (command === "start" && step === "pose-ready") startPoseCountdown();
     if (command === "accept" && step === "shot-review") acceptCapturedShot();
     if (command === "retake" && step === "shot-review") rejectCapturedShot();
+    if (command.startsWith("filter:") && step === "review") selectFinalFilter(command.slice("filter:".length) as FilterId);
+    if (command === "prepare" && step === "review") void prepareLocalResults();
   }), [step, session, cameraReady, selectedCameraSourceId, lastCapturedIndex, replaceIndex, countdown]);
 
   useEffect(() => {
@@ -126,6 +128,8 @@ export default function App() {
       cameraReady: cameraReady || selectedCameraSourceId.startsWith("gphoto:"),
       stripReady: Boolean(session?.finalStripPath),
       gifReady: Boolean(session?.finalGifPath),
+      filterId: session?.filterId ?? filterId,
+      filterRendering,
       publicUrl: session?.driveUrl,
       stripPath: session?.finalStripPath,
       gifPath: session?.finalGifPath
@@ -480,10 +484,16 @@ export default function App() {
 
   async function finishReview() {
     if (!session || shots.length !== template.captureCount) return;
+    let preparedSession = session;
+    if (!session.finalStripPath || !session.finalGifPath) {
+      const prepared = await prepareLocalResults();
+      if (!prepared) return;
+      preparedSession = prepared;
+    }
     setStep("saving");
     setQueueStatus("Foto kamu sudah aman. Sedang mengunggah hasil.");
     try {
-      const published = await window.photobooth.sessions.publish({ sessionId: session.id });
+      const published = await window.photobooth.sessions.publish({ sessionId: preparedSession.id });
       setSession(published);
       updateSessionCollection(published);
       setQueue((current) => {
@@ -501,22 +511,41 @@ export default function App() {
     } catch (error) {
       setEmailError(error instanceof Error ? error.message : "Upload gagal. Coba lagi.");
       setStep("review");
-      setQueueStatus("Upload belum berhasil. Foto tetap aman di laptop.");
+      setQueueStatus("Upload belum berhasil. Download lokal tetap tersedia di remote.");
     }
   }
 
-  async function applyFinalFilter(nextFilterId: FilterId) {
+  function selectFinalFilter(nextFilterId: FilterId) {
     if (!session || nextFilterId === session.filterId || filterRendering) return;
+    const updated = {
+      ...session,
+      filterId: nextFilterId,
+      finalStripPath: undefined,
+      finalStripDataUrl: undefined,
+      finalGifPath: undefined,
+      finalGifDataUrl: undefined
+    };
+    setFilterId(nextFilterId);
+    setSession(updated);
+    updateSessionCollection(updated);
+    setEmailError("");
+    setQueueStatus(`${filters.find((item) => item.id === nextFilterId)?.label ?? "Filter"} dipilih. Preview diperbarui instan.`);
+    void window.photobooth.sessions.updateConfig({ sessionId: session.id, templateId: session.templateId, filterId: nextFilterId });
+  }
+
+  async function prepareLocalResults(): Promise<StoredSession | null> {
+    if (!session || filterRendering) return null;
     setFilterRendering(true);
-    setQueueStatus("Menerapkan filter ke strip dan GIF.");
+    setQueueStatus("Membuat strip dan GIF untuk download lokal.");
     try {
-      const updated = await window.photobooth.sessions.applyFilter({ sessionId: session.id, filterId: nextFilterId });
-      setFilterId(nextFilterId);
+      const updated = await window.photobooth.sessions.prepare({ sessionId: session.id });
       setSession(updated);
       updateSessionCollection(updated);
-      setQueueStatus(`${filters.find((item) => item.id === nextFilterId)?.label ?? "Filter"} diterapkan.`);
+      setQueueStatus("Strip dan GIF siap diunduh dari remote, termasuk saat offline.");
+      return updated;
     } catch (error) {
-      setEmailError(error instanceof Error ? error.message : "Filter gagal diterapkan.");
+      setEmailError(error instanceof Error ? error.message : "Hasil lokal gagal dibuat.");
+      return null;
     } finally {
       setFilterRendering(false);
     }
@@ -913,13 +942,13 @@ export default function App() {
                     key={item.id}
                     className={`chip-button${filter.id === item.id ? " active" : ""}`}
                     disabled={filterRendering}
-                    onClick={() => void applyFinalFilter(item.id)}
+                    onClick={() => selectFinalFilter(item.id)}
                   >
                     {item.label}
                   </button>
                 ))}
               </div>
-              {filterRendering && <small>Merender strip dan GIF...</small>}
+              {filterRendering && <small>Membuat strip dan GIF...</small>}
             </div>
             <div className="shot-list">
               {Array.from({ length: template.captureCount }, (_, index) => {
@@ -951,7 +980,10 @@ export default function App() {
                 <span>Lanjutkan untuk upload dan membuat QR hasil.</span>
               </div>
               {emailError && <p className="error-text">{emailError}</p>}
-              <button className="primary-button full" disabled={filterRendering} onClick={() => void finishReview()}>Upload hasil</button>
+              <div className="dual-actions">
+                <button className="secondary-button" disabled={filterRendering || Boolean(session.finalStripPath)} onClick={() => void prepareLocalResults()}>{session.finalStripPath ? "Hasil lokal siap" : "Buat hasil offline"}</button>
+                <button className="primary-button" disabled={filterRendering} onClick={() => void finishReview()}>Upload hasil</button>
+              </div>
             </div>
           </div>
         </section>

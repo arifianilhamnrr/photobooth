@@ -472,6 +472,12 @@ app.whenReady().then(() => {
     await saveSession(rendered);
     return simulatePublish(input.sessionId);
   });
+  ipcMain.handle("session:prepare", async (_event, input: PublishSessionInput) => {
+    const session = await getSession(input.sessionId);
+    const rendered = session.finalStripPath ? session : await renderFinalStripForSession(session);
+    await saveSession(rendered);
+    return rendered;
+  });
   ipcMain.handle("session:send-email", async (_event, input: SendSessionEmailInput) => {
     const session = await getSession(input.sessionId);
     const recipientEmail = input.recipientEmail.trim().toLowerCase();
@@ -493,7 +499,11 @@ app.whenReady().then(() => {
     const session = await getSession(input.sessionId);
     const nextSession = updateSession(session, {
       templateId: input.templateId,
-      filterId: input.filterId
+      filterId: input.filterId,
+      finalStripPath: undefined,
+      finalStripDataUrl: undefined,
+      finalGifPath: undefined,
+      finalGifDataUrl: undefined
     });
     return saveSession(nextSession);
   });

@@ -128,6 +128,8 @@ export interface RemoteSessionState {
   cameraReady: boolean;
   stripReady: boolean;
   gifReady: boolean;
+  filterId: FilterId;
+  filterRendering: boolean;
   publicUrl?: string;
 }
 
