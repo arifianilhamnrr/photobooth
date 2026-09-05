@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, nativeImage } from "electron";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdir, mkdtemp, readFile, unlink } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { tmpdir } from "node:os";
 import { BrevoEmailService, CloudflareUploadService, GoogleDriveService } from "@photobooth/drive";
@@ -41,6 +41,7 @@ const iconPath = join(app.getAppPath(), "resources", process.platform === "win32
 const execFileAsync = promisify(execFile);
 let selectedCameraSourceId = "webcam:default";
 let database = openDatabase(databasePath);
+let gphotoQueue: Promise<void> = Promise.resolve();
 const cloudflareService = new CloudflareUploadService(process.env.PHOTOBOOTH_CLOUD_URL ?? "https://photobooth.collaborationday2026.web.id");
 const brevoEmailService = new BrevoEmailService({
   apiKey: process.env.BREVO_API_KEY,
@@ -99,16 +100,41 @@ async function runGphoto(args: string[]) {
   return execFileAsync("gphoto2", args, { timeout: 240000, maxBuffer: 8 * 1024 * 1024 });
 }
 
+function withGphotoLock<T>(operation: () => Promise<T>): Promise<T> {
+  const result = gphotoQueue.then(operation, operation);
+  gphotoQueue = result.then(() => undefined, () => undefined);
+  return result;
+}
+
+async function detectGphotoCameras(): Promise<Array<{ model: string; port: string }>> {
+  const { stdout } = await runGphoto(["--auto-detect"]);
+  return stdout
+    .split("\n")
+    .slice(2)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .flatMap((line) => {
+      const match = line.match(/^(.*?)\s{2,}(usb:\d+,\d+)$/);
+      return match ? [{ model: match[1].trim(), port: match[2] }] : [];
+    });
+}
+
+async function resolveGphotoCamera(sourceId: string): Promise<{ model: string; port: string }> {
+  const cameras = await detectGphotoCameras();
+  const sourceValue = decodeURIComponent(sourceId.replace(/^gphoto:/, ""));
+  const camera = sourceValue.startsWith("usb:")
+    ? cameras[0]
+    : cameras.find((item) => item.model === sourceValue);
+  if (!camera) throw new Error("Canon tidak terdeteksi. Cek kabel USB dan pastikan kamera menyala.");
+  return camera;
+}
+
 async function listCameraSources(): Promise<CameraSource[]> {
   const sources: CameraSource[] = [{ id: "webcam:default", label: "Webcam browser" }];
   try {
-    const { stdout } = await runGphoto(["--auto-detect"]);
-    const lines = stdout.split("\n").slice(2).map((line) => line.trim()).filter(Boolean);
-    for (const line of lines) {
-      const match = line.match(/^(.*?)\s{2,}(usb:\d+,\d+)$/);
-      if (!match) continue;
-      const [, model, port] = match;
-      sources.push({ id: `gphoto:${port}`, label: `${model.trim()} (${port})` });
+    const cameras = await withGphotoLock(detectGphotoCameras);
+    for (const camera of cameras) {
+      sources.push({ id: `gphoto:${encodeURIComponent(camera.model)}`, label: camera.model });
     }
   } catch {
     return sources;
@@ -117,16 +143,36 @@ async function listCameraSources(): Promise<CameraSource[]> {
 }
 
 async function captureFromGphoto(sourceId: string): Promise<string> {
-  const port = sourceId.replace(/^gphoto:/, "");
-  const tempDir = await mkdtemp(join(tmpdir(), "photobooth-canon-"));
-  const outputPath = join(tempDir, "capture.jpg");
-  try {
-    await runGphoto(["--port", port, "--capture-image-and-download", "--filename", outputPath, "--force-overwrite"]);
-    const bytes = await readFile(outputPath);
-    return `data:image/jpeg;base64,${bytes.toString("base64")}`;
-  } finally {
-    await unlink(outputPath).catch(() => undefined);
-  }
+  return withGphotoLock(async () => {
+    const camera = await resolveGphotoCamera(sourceId);
+    const tempDir = await mkdtemp(join(tmpdir(), "photobooth-canon-"));
+    const outputPath = join(tempDir, "capture.jpg");
+    try {
+      await runGphoto(["--port", camera.port, "--capture-image-and-download", "--filename", outputPath, "--force-overwrite"]);
+      const bytes = await readFile(outputPath);
+      return `data:image/jpeg;base64,${bytes.toString("base64")}`;
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+}
+
+async function capturePreviewFromGphoto(sourceId: string): Promise<{ dataUrl: string; label: string }> {
+  return withGphotoLock(async () => {
+    const camera = await resolveGphotoCamera(sourceId);
+    const tempDir = await mkdtemp(join(tmpdir(), "photobooth-canon-preview-"));
+    const requestedPath = join(tempDir, "preview.jpg");
+    try {
+      await runGphoto(["--port", camera.port, "--capture-preview", "--filename", requestedPath, "--force-overwrite"]);
+      const files = await readdir(tempDir);
+      const previewName = files.find((name) => /\.(jpe?g)$/i.test(name));
+      if (!previewName) throw new Error("Canon tidak menghasilkan preview.");
+      const bytes = await readFile(join(tempDir, previewName));
+      return { dataUrl: `data:image/jpeg;base64,${bytes.toString("base64")}`, label: camera.model };
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
 }
 
 async function initializePersistence() {
@@ -379,6 +425,7 @@ app.whenReady().then(() => {
     return queueFromSessions(store.sessions);
   });
   ipcMain.handle("camera:list-sources", async () => listCameraSources());
+  ipcMain.handle("camera:capture-preview", async (_event, sourceId: string) => capturePreviewFromGphoto(sourceId));
   ipcMain.handle("camera:select-source", async (_event, input: SelectCameraSourceInput) => {
     selectedCameraSourceId = input.sourceId;
     return { selectedCameraSourceId };

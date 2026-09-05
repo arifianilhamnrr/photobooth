@@ -14729,6 +14729,7 @@ function App() {
   const [cameraReady, setCameraReady] = reactExports.useState(false);
   const [cameraLabel, setCameraLabel] = reactExports.useState("Kamera belum dipilih");
   const [cameraStatusMessage, setCameraStatusMessage] = reactExports.useState("Sedang menyiapkan kamera.");
+  const [nativePreviewUrl, setNativePreviewUrl] = reactExports.useState("");
   const [captureError, setCaptureError] = reactExports.useState("");
   const [recipientEmail, setRecipientEmail] = reactExports.useState("");
   const [emailError, setEmailError] = reactExports.useState("");
@@ -14831,6 +14832,38 @@ function App() {
     return stopCamera;
   }, [cameraActive, selectedCameraSourceId, step]);
   reactExports.useEffect(() => {
+    if (!cameraActive || !selectedCameraSourceId.startsWith("gphoto:")) {
+      setNativePreviewUrl("");
+      return;
+    }
+    let cancelled = false;
+    let timer;
+    const refresh = async () => {
+      if (cancelled) return;
+      try {
+        const preview = await window.photobooth.camera.capturePreview(selectedCameraSourceId);
+        if (cancelled) return;
+        setNativePreviewUrl(preview.dataUrl);
+        setCameraLabel(preview.label);
+        setCameraReady(true);
+        setCameraError("");
+        setCameraStatusMessage("Live preview Canon aktif. Foto final tetap diambil pada resolusi penuh.");
+      } catch (error) {
+        if (cancelled) return;
+        setCameraReady(false);
+        setCameraError(error instanceof Error ? error.message : "Preview Canon gagal.");
+        setCameraStatusMessage("Preview Canon belum tersedia. Cek koneksi kamera lalu pilih ulang source.");
+      } finally {
+        if (!cancelled) timer = window.setTimeout(refresh, 700);
+      }
+    };
+    void refresh();
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [cameraActive, selectedCameraSourceId, step]);
+  reactExports.useEffect(() => {
     if (step !== "result" || !session?.driveUrl) return;
     void QRCode.toDataURL(session.driveUrl, {
       width: 320,
@@ -14864,8 +14897,8 @@ function App() {
       const source = cameraSources.find((item) => item.id === sourceId);
       setCameraLabel(source?.label ?? "Canon EOS");
       setCameraReady(false);
-      setCameraError("Preview live Canon belum aktif. Capture akan diambil langsung dari kamera.");
-      setCameraStatusMessage("Canon siap dipakai untuk jepret langsung, tetapi preview live belum tersedia.");
+      setCameraError("");
+      setCameraStatusMessage("Menghubungkan live preview Canon.");
       return;
     }
     if (!videoRef.current) return;
@@ -15251,7 +15284,7 @@ function App() {
       ] })
     ] }),
     step === "ready" && session && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "ready-layout screen-card", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "camera-stage", children: /* @__PURE__ */ jsxRuntimeExports.jsx(CameraStage, { videoRef, cameraReady, cameraError, filterCss: filter.cssFilter, label: cameraLabel }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "camera-stage", children: /* @__PURE__ */ jsxRuntimeExports.jsx(CameraStage, { videoRef, cameraReady, cameraError, filterCss: filter.cssFilter, label: cameraLabel, nativePreviewUrl }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "side-panel", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "KAMERA SIAP" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "Semua sudah masuk frame?" }),
@@ -15315,7 +15348,8 @@ function App() {
             cameraReady,
             cameraError,
             filterCss: filter.cssFilter,
-            label: replaceIndex === null ? `Foto ${captureIndex + 1} dari ${template.captureCount} · ${cameraLabel}` : `Ulangi foto ${replaceIndex + 1} · ${cameraLabel}`
+            label: replaceIndex === null ? `Foto ${captureIndex + 1} dari ${template.captureCount} · ${cameraLabel}` : `Ulangi foto ${replaceIndex + 1} · ${cameraLabel}`,
+            nativePreviewUrl
           }
         ),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "countdown-ring", children: [
@@ -15618,10 +15652,12 @@ function CameraStage({
   cameraReady,
   cameraError,
   filterCss,
-  label
+  label,
+  nativePreviewUrl = ""
 }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `live-camera-shell${cameraReady ? " ready" : " waiting"}`, style: { filter: filterCss }, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("video", { ref: videoRef, className: "live-camera", muted: true, playsInline: true, autoPlay: true }),
+    nativePreviewUrl && /* @__PURE__ */ jsxRuntimeExports.jsx("img", { className: "native-camera-preview", src: nativePreviewUrl, alt: `Live preview ${label}` }),
     !cameraReady && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "camera-empty-state", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "camera-empty-mark", "aria-hidden": "true" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Preview belum aktif" }),

@@ -11,7 +11,8 @@ contextBridge.exposeInMainWorld("photobooth", {
   },
   camera: {
     listSources: () => ipcRenderer.invoke("camera:list-sources") as Promise<CameraSource[]>,
-    selectSource: (sourceId: string) => ipcRenderer.invoke("camera:select-source", { sourceId }) as Promise<{ selectedCameraSourceId: string }>
+    selectSource: (sourceId: string) => ipcRenderer.invoke("camera:select-source", { sourceId }) as Promise<{ selectedCameraSourceId: string }>,
+    capturePreview: (sourceId: string) => ipcRenderer.invoke("camera:capture-preview", sourceId) as Promise<{ dataUrl: string; label: string }>
   },
   drive: {
     getStatus: () => ipcRenderer.invoke("drive:get-status") as Promise<DriveStatus>,
@@ -54,6 +55,7 @@ declare global {
       camera: {
         listSources(): Promise<CameraSource[]>;
         selectSource(sourceId: string): Promise<{ selectedCameraSourceId: string }>;
+        capturePreview(sourceId: string): Promise<{ dataUrl: string; label: string }>;
       };
       drive: {
         getStatus(): Promise<DriveStatus>;

@@ -60,6 +60,7 @@ export default function App() {
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraLabel, setCameraLabel] = useState("Kamera belum dipilih");
   const [cameraStatusMessage, setCameraStatusMessage] = useState("Sedang menyiapkan kamera.");
+  const [nativePreviewUrl, setNativePreviewUrl] = useState("");
   const [captureError, setCaptureError] = useState("");
   const [recipientEmail, setRecipientEmail] = useState("");
   const [emailError, setEmailError] = useState("");
@@ -178,6 +179,40 @@ export default function App() {
   }, [cameraActive, selectedCameraSourceId, step]);
 
   useEffect(() => {
+    if (!cameraActive || !selectedCameraSourceId.startsWith("gphoto:")) {
+      setNativePreviewUrl("");
+      return;
+    }
+
+    let cancelled = false;
+    let timer: number | undefined;
+    const refresh = async () => {
+      if (cancelled) return;
+      try {
+        const preview = await window.photobooth.camera.capturePreview(selectedCameraSourceId);
+        if (cancelled) return;
+        setNativePreviewUrl(preview.dataUrl);
+        setCameraLabel(preview.label);
+        setCameraReady(true);
+        setCameraError("");
+        setCameraStatusMessage("Live preview Canon aktif. Foto final tetap diambil pada resolusi penuh.");
+      } catch (error) {
+        if (cancelled) return;
+        setCameraReady(false);
+        setCameraError(error instanceof Error ? error.message : "Preview Canon gagal.");
+        setCameraStatusMessage("Preview Canon belum tersedia. Cek koneksi kamera lalu pilih ulang source.");
+      } finally {
+        if (!cancelled) timer = window.setTimeout(refresh, 700);
+      }
+    };
+    void refresh();
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [cameraActive, selectedCameraSourceId, step]);
+
+  useEffect(() => {
     if (step !== "result" || !session?.driveUrl) return;
     void QRCode.toDataURL(session.driveUrl, {
       width: 320,
@@ -216,8 +251,8 @@ export default function App() {
       const source = cameraSources.find((item) => item.id === sourceId);
       setCameraLabel(source?.label ?? "Canon EOS");
       setCameraReady(false);
-      setCameraError("Preview live Canon belum aktif. Capture akan diambil langsung dari kamera.");
-      setCameraStatusMessage("Canon siap dipakai untuk jepret langsung, tetapi preview live belum tersedia.");
+      setCameraError("");
+      setCameraStatusMessage("Menghubungkan live preview Canon.");
       return;
     }
     if (!videoRef.current) return;
@@ -644,7 +679,7 @@ export default function App() {
       {step === "ready" && session && (
         <section className="ready-layout screen-card">
           <div className="camera-stage">
-            <CameraStage videoRef={videoRef} cameraReady={cameraReady} cameraError={cameraError} filterCss={filter.cssFilter} label={cameraLabel} />
+            <CameraStage videoRef={videoRef} cameraReady={cameraReady} cameraError={cameraError} filterCss={filter.cssFilter} label={cameraLabel} nativePreviewUrl={nativePreviewUrl} />
           </div>
           <div className="side-panel">
             <p className="eyebrow">KAMERA SIAP</p>
@@ -692,6 +727,7 @@ export default function App() {
               cameraError={cameraError}
               filterCss={filter.cssFilter}
               label={replaceIndex === null ? `Foto ${captureIndex + 1} dari ${template.captureCount} · ${cameraLabel}` : `Ulangi foto ${replaceIndex + 1} · ${cameraLabel}`}
+              nativePreviewUrl={nativePreviewUrl}
             />
             <div className="countdown-ring">
               <span>{cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? countdown : "·"}</span>
@@ -1040,17 +1076,20 @@ function CameraStage({
   cameraReady,
   cameraError,
   filterCss,
-  label
+  label,
+  nativePreviewUrl = ""
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   cameraReady: boolean;
   cameraError: string;
   filterCss: string;
   label: string;
+  nativePreviewUrl?: string;
 }) {
   return (
     <div className={`live-camera-shell${cameraReady ? " ready" : " waiting"}`} style={{ filter: filterCss }}>
       <video ref={videoRef} className="live-camera" muted playsInline autoPlay />
+      {nativePreviewUrl && <img className="native-camera-preview" src={nativePreviewUrl} alt={`Live preview ${label}`} />}
       {!cameraReady && (
         <div className="camera-empty-state">
           <div className="camera-empty-mark" aria-hidden="true" />
