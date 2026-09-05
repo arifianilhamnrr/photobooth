@@ -180,16 +180,22 @@ app.get("/s/:sessionId", async (c) => {
         a { color: #ff7048; }
         .download { display: inline-block; padding: 14px 20px; border-radius: 12px; background: #ff7048; color: #15110f; text-decoration: none; font-weight: 700; }
         .download.secondary { background: #2b2f33; color: #f2f1ed; }
-        dialog { width: min(92vw, 440px); padding: 0; border: 1px solid #34383c; border-radius: 22px; background: #181a1c; color: #f2f1ed; box-shadow: 0 30px 100px rgba(0,0,0,.48); }
+        dialog { width: min(92vw, 440px); max-height: calc(100dvh - 24px); padding: 0; overflow: hidden; border: 1px solid #34383c; border-radius: 22px; background: #181a1c; color: #f2f1ed; box-shadow: 0 30px 100px rgba(0,0,0,.48); }
         dialog::backdrop { background: rgba(8,9,10,.76); backdrop-filter: blur(6px); }
-        .donation { padding: 24px; text-align: center; }
-        .donation h2 { margin: 0; font-size: 28px; }
-        .donation p { margin: 10px auto 18px; max-width: 36ch; }
-        .qris { width: min(76vw, 300px); margin: 0 auto; padding: 10px; border-radius: 16px; background: white; box-shadow: none; }
-        .donation-actions { display: grid; margin-top: 20px; }
+        .donation { position: relative; padding: clamp(18px, 3.5vh, 24px); text-align: center; }
+        .donation h2 { margin: 0; padding: 0 32px; font-size: clamp(22px, 4vh, 28px); }
+        .donation p { margin: clamp(6px, 1.4vh, 10px) auto clamp(10px, 2vh, 18px); max-width: 36ch; font-size: clamp(13px, 2.1vh, 16px); }
+        .qris { width: min(70vw, 300px, 42vh); margin: 0 auto; padding: clamp(6px, 1.2vh, 10px); border-radius: 16px; background: white; box-shadow: none; }
+        .donation-actions { display: grid; margin-top: clamp(10px, 2vh, 20px); }
         .donation-actions button { min-height: 48px; padding: 0 14px; border: 0; border-radius: 12px; font: inherit; font-weight: 700; cursor: pointer; }
         .continue-download { background: #ff7048; color: #15110f; }
-        .donation-note { display: block; margin-top: 12px; color: #83898d; font-size: 12px; }
+        .donation-note { display: block; margin-top: clamp(6px, 1.4vh, 12px); color: #83898d; font-size: clamp(10px, 1.7vh, 12px); }
+        .dialog-close { position: absolute; top: 12px; right: 12px; z-index: 1; width: 36px; height: 36px; padding: 0; border: 1px solid #41464b; border-radius: 50%; background: #25282b; color: #f2f1ed; font: inherit; font-size: 22px; line-height: 1; cursor: pointer; }
+        .dialog-close:hover { background: #34383c; }
+        @media (max-height: 620px) {
+          dialog { width: min(88vw, 390px); }
+          .donation-actions button { min-height: 42px; }
+        }
       </style>
     </head>
     <body>
@@ -207,6 +213,7 @@ app.get("/s/:sessionId", async (c) => {
       </main>
       <dialog id="donation-dialog" aria-labelledby="donation-title">
         <div class="donation">
+          <button class="dialog-close" type="button" aria-label="Tutup popup">&times;</button>
           <h2 id="donation-title">Dukung photobooth ini</h2>
           <p>Kalau berkenan, kamu bisa berdonasi seikhlasnya lewat QRIS. Download tetap gratis.</p>
           <img class="qris" src="${c.env.PUBLIC_BASE_URL}/qris.svg" alt="QRIS donasi seikhlasnya" />
@@ -233,8 +240,15 @@ app.get("/s/:sessionId", async (c) => {
           if (url) window.location.href = url;
         }
         dialog.querySelector('.continue-download').addEventListener('click', continueDownload);
+        dialog.querySelector('.dialog-close').addEventListener('click', () => {
+          pendingDownload = '';
+          dialog.close();
+        });
         dialog.addEventListener('click', (event) => {
-          if (event.target === dialog) dialog.close();
+          if (event.target === dialog) {
+            pendingDownload = '';
+            dialog.close();
+          }
         });
       </script>
     </body>
