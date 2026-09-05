@@ -1,7 +1,7 @@
 import sharp from "sharp";
 import type { FilterId, PhotoTemplate, StoredShot } from "@photobooth/domain";
 
-const OUTPUT_WIDTH = 1800;
+const OUTPUT_WIDTH = 3600;
 
 interface RenderStripInput {
   template: PhotoTemplate;

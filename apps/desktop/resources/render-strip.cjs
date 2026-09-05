@@ -11,7 +11,7 @@ function loadSharp() {
 
 const sharp = loadSharp();
 
-const OUTPUT_WIDTH = 1800;
+const OUTPUT_WIDTH = 3600;
 
 async function renderStrip({ template, shots, filterId, overlayPath, outputPath }) {
   const scale = OUTPUT_WIDTH / template.width;
