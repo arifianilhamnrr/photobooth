@@ -14712,6 +14712,8 @@ function App() {
   const [selectedCameraSourceId, setSelectedCameraSourceId] = reactExports.useState("webcam:default");
   const [driveStatus, setDriveStatus] = reactExports.useState({ mode: "mock" });
   const [cloudStatus, setCloudStatus] = reactExports.useState({ mode: "unconfigured" });
+  const [remoteStatus, setRemoteStatus] = reactExports.useState({ enabled: false, paired: false, networkMode: "unavailable" });
+  const [remoteQrUrl, setRemoteQrUrl] = reactExports.useState("");
   const [step, setStep] = reactExports.useState("welcome");
   const [templateId, setTemplateId] = reactExports.useState(templates[0].id);
   const [filterId, setFilterId] = reactExports.useState("original");
@@ -14760,6 +14762,47 @@ function App() {
     window.photobooth.system.ping().then(() => setSystemStatus("Desktop siap dipakai")).catch(() => setSystemStatus("Main process tidak merespons"));
     void refreshSnapshot();
   }, []);
+  reactExports.useEffect(() => window.photobooth.remote.onCommand((command) => {
+    if (command === "start" && step === "ready") beginCapture();
+    if (command === "start" && step === "pose-ready") startPoseCountdown();
+    if (command === "accept" && step === "shot-review") acceptCapturedShot();
+    if (command === "retake" && step === "shot-review") rejectCapturedShot();
+  }), [step, session, cameraReady, selectedCameraSourceId, lastCapturedIndex, replaceIndex, countdown]);
+  reactExports.useEffect(() => {
+    const phaseMap = {
+      welcome: "idle",
+      template: "idle",
+      ready: "ready",
+      "pose-ready": "pose-ready",
+      capture: countdown > 1 ? "countdown" : "capturing",
+      "shot-review": "shot-review",
+      review: "final-review",
+      saving: "uploading",
+      result: "result"
+    };
+    void window.photobooth.remote.updateState({
+      phase: phaseMap[step],
+      sessionId: session?.id,
+      shotIndex: lastCapturedIndex ?? replaceIndex ?? captureIndex,
+      totalShots: template.captureCount,
+      countdown: step === "capture" ? countdown : void 0,
+      cameraReady: cameraReady || selectedCameraSourceId.startsWith("gphoto:"),
+      stripReady: Boolean(session?.finalStripPath),
+      gifReady: Boolean(session?.finalGifPath),
+      publicUrl: session?.driveUrl,
+      stripPath: session?.finalStripPath,
+      gifPath: session?.finalGifPath
+    });
+  }, [cameraReady, captureIndex, countdown, lastCapturedIndex, replaceIndex, selectedCameraSourceId, session, step, template.captureCount]);
+  reactExports.useEffect(() => {
+    if (!remoteStatus.enabled) return;
+    const timer = window.setInterval(() => {
+      const resultShot = lastCapturedIndex === null ? void 0 : shots.find((shot) => shot.shotIndex === lastCapturedIndex)?.dataUrl;
+      const dataUrl = step === "shot-review" ? resultShot : selectedCameraSourceId.startsWith("gphoto:") ? nativePreviewUrl : captureFrame(720, 0.62);
+      if (dataUrl) void window.photobooth.remote.updatePreview(dataUrl);
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [lastCapturedIndex, nativePreviewUrl, remoteStatus.enabled, selectedCameraSourceId, shots, step]);
   reactExports.useEffect(() => {
     const onKeyDown = (event) => {
       if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "o") {
@@ -14892,6 +14935,7 @@ function App() {
     setSelectedCameraSourceId(snapshot.selectedCameraSourceId);
     setDriveStatus(snapshot.driveStatus);
     setCloudStatus(snapshot.cloudStatus);
+    setRemoteStatus(await window.photobooth.remote.getStatus());
   }
   async function refreshBrowserCameraSources() {
     if (!navigator.mediaDevices) return;
@@ -14962,16 +15006,17 @@ function App() {
     if (videoRef.current) videoRef.current.srcObject = null;
     setCameraReady(false);
   }
-  function captureFrame() {
+  function captureFrame(maxWidth, quality = 0.98) {
     const video = videoRef.current;
     if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || video.videoWidth === 0 || video.videoHeight === 0) return null;
     const canvas2 = document.createElement("canvas");
-    canvas2.width = video.videoWidth;
-    canvas2.height = video.videoHeight;
+    const scale = maxWidth ? Math.min(1, maxWidth / video.videoWidth) : 1;
+    canvas2.width = Math.round(video.videoWidth * scale);
+    canvas2.height = Math.round(video.videoHeight * scale);
     const context = canvas2.getContext("2d");
     if (!context) return null;
     context.drawImage(video, 0, 0, canvas2.width, canvas2.height);
-    return canvas2.toDataURL("image/jpeg", 0.98);
+    return canvas2.toDataURL("image/jpeg", quality);
   }
   function updateSessionCollection(nextSession) {
     setAllSessions((current) => [nextSession, ...current.filter((item) => item.id !== nextSession.id)]);
@@ -15160,6 +15205,21 @@ function App() {
   async function createDriveRootFolder() {
     const status = await window.photobooth.drive.createRootFolder(settings.driveRootFolderName);
     setDriveStatus(status);
+  }
+  async function enableRemote() {
+    const status = await window.photobooth.remote.enable();
+    setRemoteStatus(status);
+    if (status.pairingUrl) setRemoteQrUrl(await QRCode.toDataURL(status.pairingUrl, { width: 260, margin: 1 }));
+  }
+  async function disableRemote() {
+    const status = await window.photobooth.remote.disable();
+    setRemoteStatus(status);
+    setRemoteQrUrl("");
+  }
+  async function toggleRemoteHotspot(enabled) {
+    const status = enabled ? await window.photobooth.remote.enableHotspot() : await window.photobooth.remote.disableHotspot();
+    setRemoteStatus(status);
+    if (status.pairingUrl) setRemoteQrUrl(await QRCode.toDataURL(status.pairingUrl, { width: 260, margin: 1 }));
   }
   async function toggleKiosk(value) {
     const result = await window.photobooth.system.setKiosk(value);
@@ -15584,6 +15644,29 @@ function App() {
             /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: item.sessionId }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: item.status })
           ] }, item.sessionId))
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-section", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { children: "Remote HP" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-list", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-row", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Status" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: remoteStatus.paired ? "HP terhubung" : remoteStatus.enabled ? "Menunggu pairing" : "Nonaktif" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-row", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Jaringan" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: remoteStatus.networkMode === "hotspot" ? remoteStatus.ssid : remoteStatus.baseUrl || "Tidak tersedia" })
+          ] })
+        ] }),
+        remoteStatus.wifiPassword && /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "operator-help", children: [
+          "Password hotspot: ",
+          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: remoteStatus.wifiPassword })
+        ] }),
+        remoteQrUrl && /* @__PURE__ */ jsxRuntimeExports.jsx("img", { className: "remote-pairing-qr", src: remoteQrUrl, alt: "QR pairing remote HP" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-camera-picker", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button small", onClick: () => void enableRemote(), children: remoteStatus.enabled ? "Buat QR baru" : "Aktifkan remote" }),
+          remoteStatus.enabled && /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button small", onClick: () => void toggleRemoteHotspot(remoteStatus.networkMode !== "hotspot"), children: remoteStatus.networkMode === "hotspot" ? "Matikan hotspot" : "Gunakan hotspot" }),
+          remoteStatus.enabled && /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button small", onClick: () => void disableRemote(), children: "Matikan remote" })
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "operator-section", children: [

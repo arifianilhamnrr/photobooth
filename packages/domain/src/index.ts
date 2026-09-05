@@ -107,6 +107,40 @@ export interface CloudStatus {
   baseUrl?: string;
 }
 
+export type RemotePhase =
+  | "idle"
+  | "ready"
+  | "pose-ready"
+  | "countdown"
+  | "capturing"
+  | "shot-review"
+  | "final-review"
+  | "rendering"
+  | "uploading"
+  | "result";
+
+export interface RemoteSessionState {
+  phase: RemotePhase;
+  sessionId?: string;
+  shotIndex: number;
+  totalShots: number;
+  countdown?: number;
+  cameraReady: boolean;
+  stripReady: boolean;
+  gifReady: boolean;
+  publicUrl?: string;
+}
+
+export interface RemoteStatus {
+  enabled: boolean;
+  paired: boolean;
+  baseUrl?: string;
+  pairingUrl?: string;
+  networkMode: "lan" | "hotspot" | "unavailable";
+  ssid?: string;
+  wifiPassword?: string;
+}
+
 export interface AppSnapshot {
   settings: BoothSettings;
   sessions: StoredSession[];

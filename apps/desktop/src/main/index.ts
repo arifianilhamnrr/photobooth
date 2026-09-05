@@ -6,6 +6,7 @@ import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { tmpdir } from "node:os";
 import { BrevoEmailService, CloudflareUploadService, GoogleDriveService } from "@photobooth/drive";
+import { RemoteControlServer } from "./remote";
 import {
   buildShotColor,
   type CameraSource,
@@ -17,6 +18,8 @@ import {
   type BoothSettings,
   type FilterId,
   type QueueItem,
+  type RemoteSessionState,
+  type RemoteStatus,
   type SessionStatus,
   type StoredSession,
   type StoredShot
@@ -49,6 +52,7 @@ let gphotoLiveView: {
   latestFrame?: Buffer;
   error?: string;
 } | null = null;
+const remoteServer = new RemoteControlServer(() => mainWindow);
 
 function loadUserEnvironment(): void {
   const configPath = join(app.getPath("userData"), "env");
@@ -397,6 +401,7 @@ async function createWindow() {
 
 app.whenReady().then(() => {
   void initializePersistence();
+  void remoteServer.start();
   ipcMain.handle("system:ping", async () => ({ ok: true }));
   ipcMain.handle("app:snapshot", async () => {
     const store = readSnapshotFromDatabase(database);
@@ -510,6 +515,19 @@ app.whenReady().then(() => {
     await stopGphotoLiveView();
     selectedCameraSourceId = input.sourceId;
     return { selectedCameraSourceId };
+  });
+  ipcMain.handle("remote:get-status", async (): Promise<RemoteStatus> => remoteServer.getStatus());
+  ipcMain.handle("remote:enable", async (): Promise<RemoteStatus> => remoteServer.enable());
+  ipcMain.handle("remote:disable", async (): Promise<RemoteStatus> => remoteServer.disable());
+  ipcMain.handle("remote:enable-hotspot", async (): Promise<RemoteStatus> => remoteServer.enableHotspot());
+  ipcMain.handle("remote:disable-hotspot", async (): Promise<RemoteStatus> => remoteServer.disableHotspot());
+  ipcMain.handle("remote:update-state", async (_event, state: RemoteSessionState & { stripPath?: string; gifPath?: string }) => {
+    remoteServer.updateState(state);
+    return { ok: true };
+  });
+  ipcMain.handle("remote:update-preview", async (_event, dataUrl?: string) => {
+    remoteServer.updatePreview(dataUrl);
+    return { ok: true };
   });
   ipcMain.handle("drive:get-status", async (): Promise<DriveStatus> => driveService.getStatus());
   ipcMain.handle("cloud:get-status", async (): Promise<CloudStatus> => cloudflareService.getStatus());

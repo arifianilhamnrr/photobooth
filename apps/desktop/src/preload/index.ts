@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { BoothSettings, CameraSource, CloudStatus, DriveStatus, QueueItem, StoredSession } from "@photobooth/domain";
+import type { BoothSettings, CameraSource, CloudStatus, DriveStatus, QueueItem, RemoteSessionState, RemoteStatus, StoredSession } from "@photobooth/domain";
 
 contextBridge.exposeInMainWorld("photobooth", {
   system: {
@@ -24,6 +24,20 @@ contextBridge.exposeInMainWorld("photobooth", {
   },
   cloud: {
     getStatus: () => ipcRenderer.invoke("cloud:get-status") as Promise<CloudStatus>
+  },
+  remote: {
+    getStatus: () => ipcRenderer.invoke("remote:get-status") as Promise<RemoteStatus>,
+    enable: () => ipcRenderer.invoke("remote:enable") as Promise<RemoteStatus>,
+    disable: () => ipcRenderer.invoke("remote:disable") as Promise<RemoteStatus>,
+    enableHotspot: () => ipcRenderer.invoke("remote:enable-hotspot") as Promise<RemoteStatus>,
+    disableHotspot: () => ipcRenderer.invoke("remote:disable-hotspot") as Promise<RemoteStatus>,
+    updateState: (state: RemoteSessionState & { stripPath?: string; gifPath?: string }) => ipcRenderer.invoke("remote:update-state", state) as Promise<{ ok: boolean }>,
+    updatePreview: (dataUrl?: string) => ipcRenderer.invoke("remote:update-preview", dataUrl) as Promise<{ ok: boolean }>,
+    onCommand: (listener: (command: "start" | "accept" | "retake") => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, command: "start" | "accept" | "retake") => listener(command);
+      ipcRenderer.on("remote:command", handler);
+      return () => ipcRenderer.removeListener("remote:command", handler);
+    }
   },
   settings: {
       update: (settings: Partial<BoothSettings>) => ipcRenderer.invoke("settings:update", settings) as Promise<BoothSettings>
@@ -69,6 +83,16 @@ declare global {
       };
       cloud: {
         getStatus(): Promise<CloudStatus>;
+      };
+      remote: {
+        getStatus(): Promise<RemoteStatus>;
+        enable(): Promise<RemoteStatus>;
+        disable(): Promise<RemoteStatus>;
+        enableHotspot(): Promise<RemoteStatus>;
+        disableHotspot(): Promise<RemoteStatus>;
+        updateState(state: RemoteSessionState & { stripPath?: string; gifPath?: string }): Promise<{ ok: boolean }>;
+        updatePreview(dataUrl?: string): Promise<{ ok: boolean }>;
+        onCommand(listener: (command: "start" | "accept" | "retake") => void): () => void;
       };
       settings: {
         update(settings: Partial<BoothSettings>): Promise<BoothSettings>;

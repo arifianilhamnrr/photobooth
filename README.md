@@ -14,6 +14,7 @@ Fitur utama:
 - Upload dan QR sebelum email opsional.
 - GIF animasi dari enam foto.
 - Prompt donasi QRIS opsional sebelum download.
+- Remote control lewat browser HP dengan pairing QR dan preview ringan.
 - Kirim link hasil via Brevo SMTP.
 
 ## Status Saat Ini
@@ -227,6 +228,27 @@ Webcam internal, USB webcam, capture card, dan kamera UVC seperti Insta360 Webca
    - membuat strip HD dan GIF
    - mengirim email hasil lewat Brevo jika diminta
    - tampilkan QR code
+
+## Remote HP
+
+Remote tidak membutuhkan aplikasi mobile. Buka panel Operator, aktifkan `Remote HP`, lalu scan QR pairing dari browser HP.
+
+Remote dapat:
+
+- melihat preview kamera ringan
+- memulai countdown
+- memilih `Ulang` atau `Next`
+- download strip dan GIF langsung dari laptop
+
+Jika laptop dan HP berada pada Wi-Fi yang sama, remote memakai alamat LAN laptop. Jika jaringan memblokir komunikasi antarperangkat atau laptop tidak terhubung Wi-Fi, operator dapat memilih `Gunakan hotspot`.
+
+Pada hotspot Linux:
+
+- SSID dan password tampil di panel operator
+- remote tetap bekerja tanpa internet
+- upload Cloudflare menunggu sampai internet tersedia kembali
+
+Original enam foto tetap lokal. Cloudflare hanya menerima `strip.jpg` dan `slideshow.gif`.
 
 ## Canon EOS di Linux
 

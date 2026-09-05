@@ -1019,6 +1019,16 @@ button {
   line-height: 1.5;
 }
 
+.remote-pairing-qr {
+  width: 220px;
+  height: 220px;
+  display: block;
+  margin: 4px auto;
+  padding: 8px;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
 .input-label {
   margin-top: 18px;
   margin-bottom: 10px;

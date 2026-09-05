@@ -17,6 +17,8 @@ import {
   type FilterId,
   type PhotoTemplate,
   type QueueItem,
+  type RemotePhase,
+  type RemoteStatus,
   type StoredSession,
   type StoredShot,
   type TemplateSlot
@@ -43,6 +45,8 @@ export default function App() {
   const [selectedCameraSourceId, setSelectedCameraSourceId] = useState("webcam:default");
   const [driveStatus, setDriveStatus] = useState<DriveStatus>({ mode: "mock" });
   const [cloudStatus, setCloudStatus] = useState<CloudStatus>({ mode: "unconfigured" });
+  const [remoteStatus, setRemoteStatus] = useState<RemoteStatus>({ enabled: false, paired: false, networkMode: "unavailable" });
+  const [remoteQrUrl, setRemoteQrUrl] = useState("");
   const [step, setStep] = useState<Step>("welcome");
   const [templateId, setTemplateId] = useState(templates[0].id);
   const [filterId, setFilterId] = useState<FilterId>("original");
@@ -93,6 +97,50 @@ export default function App() {
     window.photobooth.system.ping().then(() => setSystemStatus("Desktop siap dipakai")).catch(() => setSystemStatus("Main process tidak merespons"));
     void refreshSnapshot();
   }, []);
+
+  useEffect(() => window.photobooth.remote.onCommand((command) => {
+    if (command === "start" && step === "ready") beginCapture();
+    if (command === "start" && step === "pose-ready") startPoseCountdown();
+    if (command === "accept" && step === "shot-review") acceptCapturedShot();
+    if (command === "retake" && step === "shot-review") rejectCapturedShot();
+  }), [step, session, cameraReady, selectedCameraSourceId, lastCapturedIndex, replaceIndex, countdown]);
+
+  useEffect(() => {
+    const phaseMap: Record<Step, RemotePhase> = {
+      welcome: "idle",
+      template: "idle",
+      ready: "ready",
+      "pose-ready": "pose-ready",
+      capture: countdown > 1 ? "countdown" : "capturing",
+      "shot-review": "shot-review",
+      review: "final-review",
+      saving: "uploading",
+      result: "result"
+    };
+    void window.photobooth.remote.updateState({
+      phase: phaseMap[step],
+      sessionId: session?.id,
+      shotIndex: lastCapturedIndex ?? replaceIndex ?? captureIndex,
+      totalShots: template.captureCount,
+      countdown: step === "capture" ? countdown : undefined,
+      cameraReady: cameraReady || selectedCameraSourceId.startsWith("gphoto:"),
+      stripReady: Boolean(session?.finalStripPath),
+      gifReady: Boolean(session?.finalGifPath),
+      publicUrl: session?.driveUrl,
+      stripPath: session?.finalStripPath,
+      gifPath: session?.finalGifPath
+    });
+  }, [cameraReady, captureIndex, countdown, lastCapturedIndex, replaceIndex, selectedCameraSourceId, session, step, template.captureCount]);
+
+  useEffect(() => {
+    if (!remoteStatus.enabled) return;
+    const timer = window.setInterval(() => {
+      const resultShot = lastCapturedIndex === null ? undefined : shots.find((shot) => shot.shotIndex === lastCapturedIndex)?.dataUrl;
+      const dataUrl = step === "shot-review" ? resultShot : selectedCameraSourceId.startsWith("gphoto:") ? nativePreviewUrl : captureFrame(720, 0.62);
+      if (dataUrl) void window.photobooth.remote.updatePreview(dataUrl);
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [lastCapturedIndex, nativePreviewUrl, remoteStatus.enabled, selectedCameraSourceId, shots, step]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -243,6 +291,7 @@ export default function App() {
     setSelectedCameraSourceId(snapshot.selectedCameraSourceId);
     setDriveStatus(snapshot.driveStatus);
     setCloudStatus(snapshot.cloudStatus);
+    setRemoteStatus(await window.photobooth.remote.getStatus());
   }
 
   async function refreshBrowserCameraSources() {
@@ -321,16 +370,17 @@ export default function App() {
     setCameraReady(false);
   }
 
-  function captureFrame(): string | null {
+  function captureFrame(maxWidth?: number, quality = 0.98): string | null {
     const video = videoRef.current;
     if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || video.videoWidth === 0 || video.videoHeight === 0) return null;
     const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    const scale = maxWidth ? Math.min(1, maxWidth / video.videoWidth) : 1;
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
     const context = canvas.getContext("2d");
     if (!context) return null;
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL("image/jpeg", 0.98);
+    return canvas.toDataURL("image/jpeg", quality);
   }
 
   function updateSessionCollection(nextSession: StoredSession) {
@@ -538,6 +588,24 @@ export default function App() {
   async function createDriveRootFolder() {
     const status = await window.photobooth.drive.createRootFolder(settings.driveRootFolderName);
     setDriveStatus(status);
+  }
+
+  async function enableRemote() {
+    const status = await window.photobooth.remote.enable();
+    setRemoteStatus(status);
+    if (status.pairingUrl) setRemoteQrUrl(await QRCode.toDataURL(status.pairingUrl, { width: 260, margin: 1 }));
+  }
+
+  async function disableRemote() {
+    const status = await window.photobooth.remote.disable();
+    setRemoteStatus(status);
+    setRemoteQrUrl("");
+  }
+
+  async function toggleRemoteHotspot(enabled: boolean) {
+    const status = enabled ? await window.photobooth.remote.enableHotspot() : await window.photobooth.remote.disableHotspot();
+    setRemoteStatus(status);
+    if (status.pairingUrl) setRemoteQrUrl(await QRCode.toDataURL(status.pairingUrl, { width: 260, margin: 1 }));
   }
 
   async function toggleKiosk(value: boolean) {
@@ -988,6 +1056,20 @@ export default function App() {
                     <span>{item.status}</span>
                   </div>
                 ))}
+              </div>
+            </div>
+            <div className="operator-section">
+              <label>Remote HP</label>
+              <div className="operator-list">
+                <div className="operator-row"><strong>Status</strong><span>{remoteStatus.paired ? "HP terhubung" : remoteStatus.enabled ? "Menunggu pairing" : "Nonaktif"}</span></div>
+                <div className="operator-row"><strong>Jaringan</strong><span>{remoteStatus.networkMode === "hotspot" ? remoteStatus.ssid : remoteStatus.baseUrl || "Tidak tersedia"}</span></div>
+              </div>
+              {remoteStatus.wifiPassword && <p className="operator-help">Password hotspot: <strong>{remoteStatus.wifiPassword}</strong></p>}
+              {remoteQrUrl && <img className="remote-pairing-qr" src={remoteQrUrl} alt="QR pairing remote HP" />}
+              <div className="operator-camera-picker">
+                <button className="secondary-button small" onClick={() => void enableRemote()}>{remoteStatus.enabled ? "Buat QR baru" : "Aktifkan remote"}</button>
+                {remoteStatus.enabled && <button className="secondary-button small" onClick={() => void toggleRemoteHotspot(remoteStatus.networkMode !== "hotspot")}>{remoteStatus.networkMode === "hotspot" ? "Matikan hotspot" : "Gunakan hotspot"}</button>}
+                {remoteStatus.enabled && <button className="secondary-button small" onClick={() => void disableRemote()}>Matikan remote</button>}
               </div>
             </div>
             <div className="operator-section">
