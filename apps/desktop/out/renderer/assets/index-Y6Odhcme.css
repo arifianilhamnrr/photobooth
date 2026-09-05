@@ -257,16 +257,24 @@ button {
 }
 
 .compact-template-grid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  width: 100%;
 }
 
-.compact-template-card {
-  display: grid;
+.template-card.compact-template-card {
+  display: inline-grid;
+  grid-template-columns: none;
   place-items: center;
-  min-height: 360px;
-  padding: 12px 8px;
-  overflow: visible;
+  width: fit-content;
+  min-width: 0;
+  min-height: 0;
+  padding: 8px;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #121416;
 }
 
 .compact-actions {
