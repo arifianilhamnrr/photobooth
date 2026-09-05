@@ -1,4 +1,15 @@
-const sharp = require('sharp');
+const path = require('node:path');
+
+function loadSharp() {
+  try {
+    return require('sharp');
+  } catch (error) {
+    // extraResources places this helper beside the unpacked app directory.
+    return require(path.join(__dirname, 'app', 'node_modules', 'sharp'));
+  }
+}
+
+const sharp = loadSharp();
 const { readFile } = require('node:fs/promises');
 
 async function renderStrip({ template, shots, filterId, overlayPath, outputPath }) {
