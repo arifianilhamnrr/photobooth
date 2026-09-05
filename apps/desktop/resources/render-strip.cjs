@@ -10,13 +10,16 @@ function loadSharp() {
 }
 
 const sharp = loadSharp();
-const { readFile } = require('node:fs/promises');
+
+const OUTPUT_WIDTH = 1800;
 
 async function renderStrip({ template, shots, filterId, overlayPath, outputPath }) {
+  const scale = OUTPUT_WIDTH / template.width;
+  const outputHeight = Math.round(template.height * scale);
   const base = sharp({
     create: {
-      width: template.width,
-      height: template.height,
+      width: OUTPUT_WIDTH,
+      height: outputHeight,
       channels: 4,
       background: '#ece3d6'
     }
@@ -28,7 +31,11 @@ async function renderStrip({ template, shots, filterId, overlayPath, outputPath 
     const shot = shots.find((item) => item.shotIndex === slot.photoIndex && item.filePath);
     if (!shot || !shot.filePath) continue;
 
-    let image = sharp(shot.filePath).rotate().resize(slot.width, slot.height, {
+    const slotWidth = Math.round(slot.width * scale);
+    const slotHeight = Math.round(slot.height * scale);
+    const slotRadius = Math.round(slot.cornerRadius * scale);
+
+    let image = sharp(shot.filePath).rotate().resize(slotWidth, slotHeight, {
       fit: 'cover',
       position: 'centre'
     });
@@ -39,17 +46,23 @@ async function renderStrip({ template, shots, filterId, overlayPath, outputPath 
     if (filterId === 'contrast') image = image.linear(1.16, -(128 * 1.16) + 128).modulate({ saturation: 1.1, brightness: 0.98 });
 
     const roundedMask = Buffer.from(
-      `<svg width="${slot.width}" height="${slot.height}"><rect x="0" y="0" width="${slot.width}" height="${slot.height}" rx="${slot.cornerRadius}" ry="${slot.cornerRadius}" fill="white" /></svg>`
+      `<svg width="${slotWidth}" height="${slotHeight}"><rect x="0" y="0" width="${slotWidth}" height="${slotHeight}" rx="${slotRadius}" ry="${slotRadius}" fill="white" /></svg>`
     );
 
     const rendered = await image.composite([{ input: roundedMask, blend: 'dest-in' }]).png().toBuffer();
-    composites.push({ input: rendered, left: slot.x, top: slot.y });
+    composites.push({ input: rendered, left: Math.round(slot.x * scale), top: Math.round(slot.y * scale) });
   }
 
-  const overlayBuffer = await readFile(overlayPath);
+  const overlayBuffer = await sharp(overlayPath)
+    .resize(OUTPUT_WIDTH, outputHeight, { fit: 'fill' })
+    .png()
+    .toBuffer();
   composites.push({ input: overlayBuffer, left: 0, top: 0 });
 
-  await base.composite(composites).jpeg({ quality: 92 }).toFile(outputPath);
+  await base
+    .composite(composites)
+    .jpeg({ quality: 96, chromaSubsampling: '4:4:4', mozjpeg: true })
+    .toFile(outputPath);
 }
 
 module.exports = { renderStrip };

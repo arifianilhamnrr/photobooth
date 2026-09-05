@@ -269,7 +269,7 @@ export default function App() {
     const context = canvas.getContext("2d");
     if (!context) return null;
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL("image/jpeg", 0.92);
+    return canvas.toDataURL("image/jpeg", 0.98);
   }
 
   function updateSessionCollection(nextSession: StoredSession) {
@@ -614,9 +614,9 @@ export default function App() {
               ))}
             </div>
             <div className="shot-review-actions">
-              <button className="secondary-button" onClick={rejectCapturedShot}>Batal & foto ulang</button>
+              <button className="secondary-button" onClick={rejectCapturedShot}>Ulang</button>
               <button className="primary-button" onClick={acceptCapturedShot}>
-                {replaceIndex !== null || lastCapturedIndex + 1 >= template.captureCount ? "Pakai foto" : "Pakai & lanjut"}
+                {replaceIndex !== null || lastCapturedIndex + 1 >= template.captureCount ? "Pakai" : "Next"}
               </button>
             </div>
           </div>

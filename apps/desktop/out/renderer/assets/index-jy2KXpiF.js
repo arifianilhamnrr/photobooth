@@ -14913,7 +14913,7 @@ function App() {
     const context = canvas2.getContext("2d");
     if (!context) return null;
     context.drawImage(video, 0, 0, canvas2.width, canvas2.height);
-    return canvas2.toDataURL("image/jpeg", 0.92);
+    return canvas2.toDataURL("image/jpeg", 0.98);
   }
   function updateSessionCollection(nextSession) {
     setAllSessions((current) => [nextSession, ...current.filter((item) => item.id !== nextSession.id)]);
@@ -15232,8 +15232,8 @@ function App() {
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "body small", children: "Kalau sudah pas, lanjut ke pose berikutnya. Kalau belum, batalkan dan ambil ulang foto yang sama." }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "shot-review-progress", children: Array.from({ length: template.captureCount }, (_, index) => /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: index <= lastCapturedIndex ? "filled" : "", children: index + 1 }, index)) }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "shot-review-actions", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", onClick: rejectCapturedShot, children: "Batal & foto ulang" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: acceptCapturedShot, children: replaceIndex !== null || lastCapturedIndex + 1 >= template.captureCount ? "Pakai foto" : "Pakai & lanjut" })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", onClick: rejectCapturedShot, children: "Ulang" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", onClick: acceptCapturedShot, children: replaceIndex !== null || lastCapturedIndex + 1 >= template.captureCount ? "Pakai" : "Next" })
         ] })
       ] })
     ] }),
