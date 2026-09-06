@@ -155,15 +155,27 @@ export function openDatabase(filePath: string): DatabaseSync {
     database.exec("ALTER TABLE sessions ADD COLUMN capture_count INTEGER NOT NULL DEFAULT 6");
   }
 
+  const storageVersion = database.prepare("PRAGMA user_version").get() as { user_version: number };
+  if (storageVersion.user_version < 2) {
+    database.exec(`
+      UPDATE shots SET data_url = NULL WHERE data_url IS NOT NULL;
+      UPDATE sessions SET final_strip_data_url = NULL, final_gif_data_url = NULL
+      WHERE final_strip_data_url IS NOT NULL OR final_gif_data_url IS NOT NULL;
+      PRAGMA user_version = 2;
+    `);
+    database.exec("VACUUM");
+  }
+
   return database;
 }
 
 export function readSnapshotFromDatabase(database: DatabaseSync): PersistedStore {
   const settingsRow = database.prepare("SELECT settings_json FROM app_settings WHERE id = 1").get() as { settings_json: string };
   const sessionRows = database.prepare(`
-    SELECT id, template_id, filter_id, capture_count, status, created_at, updated_at, recipient_email, drive_url, final_strip_path, final_strip_data_url, final_gif_path, final_gif_data_url, session_dir
+    SELECT id, template_id, filter_id, capture_count, status, created_at, updated_at, recipient_email, drive_url, final_strip_path, final_gif_path, session_dir
     FROM sessions
     ORDER BY created_at DESC
+    LIMIT 100
   `).all() as Array<{
     id: string;
     template_id: string;
@@ -175,22 +187,20 @@ export function readSnapshotFromDatabase(database: DatabaseSync): PersistedStore
     recipient_email: string | null;
     drive_url: string | null;
     final_strip_path: string | null;
-    final_strip_data_url: string | null;
     final_gif_path: string | null;
-    final_gif_data_url: string | null;
     session_dir: string | null;
   }>;
 
   const shotRows = database.prepare(`
-    SELECT session_id, shot_index, revision, attempts_used, color, data_url, file_path, captured_at
+    SELECT session_id, shot_index, revision, attempts_used, color, file_path, captured_at
     FROM shots
+    WHERE session_id IN (SELECT id FROM sessions ORDER BY created_at DESC LIMIT 100)
   `).all() as Array<{
     session_id: string;
     shot_index: number;
     revision: number;
     attempts_used: number;
     color: string;
-    data_url: string | null;
     file_path: string | null;
     captured_at: string;
   }>;
@@ -206,9 +216,7 @@ export function readSnapshotFromDatabase(database: DatabaseSync): PersistedStore
     recipientEmail: row.recipient_email ?? undefined,
     driveUrl: row.drive_url ?? undefined,
     finalStripPath: row.final_strip_path ?? undefined,
-    finalStripDataUrl: row.final_strip_data_url ?? undefined,
     finalGifPath: row.final_gif_path ?? undefined,
-    finalGifDataUrl: row.final_gif_data_url ?? undefined,
     sessionDir: row.session_dir ?? undefined,
     shots: shotRows
       .filter((shot) => shot.session_id === row.id)
@@ -218,7 +226,6 @@ export function readSnapshotFromDatabase(database: DatabaseSync): PersistedStore
         revision: shot.revision,
         attemptsUsed: shot.attempts_used,
         color: shot.color,
-        dataUrl: shot.data_url ?? undefined,
         filePath: shot.file_path ?? undefined,
         capturedAt: shot.captured_at
       }))
@@ -281,9 +288,9 @@ export function upsertSessionInDatabase(database: DatabaseSync, session: StoredS
       session.recipientEmail ?? null,
       session.driveUrl ?? null,
       session.finalStripPath ?? null,
-      session.finalStripDataUrl ?? null,
+      null,
       session.finalGifPath ?? null,
-      session.finalGifDataUrl ?? null,
+      null,
       session.sessionDir ?? null
     );
 
@@ -294,7 +301,7 @@ export function upsertSessionInDatabase(database: DatabaseSync, session: StoredS
         shot.revision,
         shot.attemptsUsed,
         shot.color,
-        shot.dataUrl ?? null,
+        null,
         shot.filePath ?? null,
         shot.capturedAt
       );

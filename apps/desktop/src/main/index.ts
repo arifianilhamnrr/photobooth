@@ -355,7 +355,21 @@ async function getSession(sessionId: string): Promise<StoredSession> {
   const store = readSnapshotFromDatabase(database);
   const session = store.sessions.find((item) => item.id === sessionId);
   if (!session) throw new Error(`Session not found: ${sessionId}`);
-  return session;
+  const shots = await Promise.all(session.shots.map(async (shot) => ({
+    ...shot,
+    dataUrl: shot.filePath && existsSync(shot.filePath)
+      ? `data:image/jpeg;base64,${(await readFile(shot.filePath)).toString("base64")}`
+      : undefined
+  })));
+  const [finalStripDataUrl, finalGifDataUrl] = await Promise.all([
+    session.finalStripPath && existsSync(session.finalStripPath)
+      ? readFile(session.finalStripPath).then((bytes) => `data:image/jpeg;base64,${bytes.toString("base64")}`)
+      : undefined,
+    session.finalGifPath && existsSync(session.finalGifPath)
+      ? readFile(session.finalGifPath).then((bytes) => `data:image/gif;base64,${bytes.toString("base64")}`)
+      : undefined
+  ]);
+  return { ...session, shots, finalStripDataUrl, finalGifDataUrl };
 }
 
 async function simulatePublish(sessionId: string): Promise<StoredSession> {
