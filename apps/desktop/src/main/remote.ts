@@ -11,7 +11,7 @@ import { remotePage } from "./remote-page";
 const execFileAsync = promisify(execFile);
 const PORT = 8788;
 
-type RemoteCommand = "start" | "accept" | "retake" | "prepare" | "new-session" | "confirm-frame" | "confirm-count" | "cancel-session" | `capture-count:${3 | 6}` | `filter:${string}` | `frame:${string}`;
+type RemoteCommand = "start" | "accept" | "retake" | "prepare" | "new-session" | "confirm-frame" | "confirm-count" | "confirm-countdown" | "change-frame" | "cancel-session" | `capture-count:${3 | 6}` | `countdown-seconds:${0 | 3 | 5 | 10}` | `filter:${string}` | `frame:${string}`;
 
 export class RemoteControlServer {
   private server = createServer((request, response) => void this.handle(request, response));
@@ -32,7 +32,8 @@ export class RemoteControlServer {
     gifReady: false,
     filterId: "original",
     filterRendering: false,
-    captureCount: 6
+    captureCount: 6,
+    countdownSeconds: 3
   };
 
   constructor(
@@ -167,7 +168,7 @@ export class RemoteControlServer {
     }
     if (url.pathname.startsWith("/api/command/") && request.method === "POST") {
       const command = decodeURIComponent(url.pathname.split("/").at(-1) ?? "") as RemoteCommand;
-      const allowed = ["start", "accept", "retake", "prepare", "new-session", "confirm-frame", "confirm-count", "cancel-session", "capture-count:3", "capture-count:6", "filter:original", "filter:mono", "filter:warm", "filter:cool", "filter:contrast", "frame:frame-1", "frame:frame-2", "frame:frame-3", "frame:frame-4", "frame:frame-5"];
+      const allowed = ["start", "accept", "retake", "prepare", "new-session", "confirm-frame", "confirm-count", "confirm-countdown", "change-frame", "cancel-session", "capture-count:3", "capture-count:6", "countdown-seconds:0", "countdown-seconds:3", "countdown-seconds:5", "countdown-seconds:10", "filter:original", "filter:mono", "filter:warm", "filter:cool", "filter:contrast", "frame:frame-1", "frame:frame-2", "frame:frame-3", "frame:frame-4", "frame:frame-5"];
       if (!allowed.includes(command)) return this.json(response, 400, { error: "Command tidak valid" });
       this.getWindow()?.webContents.send("remote:command", command);
       return this.json(response, 202, { ok: true });

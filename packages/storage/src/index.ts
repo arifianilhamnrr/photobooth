@@ -88,6 +88,7 @@ export function openDatabase(filePath: string): DatabaseSync {
       template_id TEXT NOT NULL,
       filter_id TEXT NOT NULL,
       capture_count INTEGER NOT NULL DEFAULT 6,
+      countdown_seconds INTEGER NOT NULL DEFAULT 3,
       status TEXT NOT NULL,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -154,6 +155,9 @@ export function openDatabase(filePath: string): DatabaseSync {
   if (!sessionColumns.some((column) => column.name === "capture_count")) {
     database.exec("ALTER TABLE sessions ADD COLUMN capture_count INTEGER NOT NULL DEFAULT 6");
   }
+  if (!sessionColumns.some((column) => column.name === "countdown_seconds")) {
+    database.exec("ALTER TABLE sessions ADD COLUMN countdown_seconds INTEGER NOT NULL DEFAULT 3");
+  }
 
   const storageVersion = database.prepare("PRAGMA user_version").get() as { user_version: number };
   if (storageVersion.user_version < 2) {
@@ -172,7 +176,7 @@ export function openDatabase(filePath: string): DatabaseSync {
 export function readSnapshotFromDatabase(database: DatabaseSync): PersistedStore {
   const settingsRow = database.prepare("SELECT settings_json FROM app_settings WHERE id = 1").get() as { settings_json: string };
   const sessionRows = database.prepare(`
-    SELECT id, template_id, filter_id, capture_count, status, created_at, updated_at, recipient_email, drive_url, final_strip_path, final_gif_path, session_dir
+    SELECT id, template_id, filter_id, capture_count, countdown_seconds, status, created_at, updated_at, recipient_email, drive_url, final_strip_path, final_gif_path, session_dir
     FROM sessions
     ORDER BY created_at DESC
     LIMIT 100
@@ -181,6 +185,7 @@ export function readSnapshotFromDatabase(database: DatabaseSync): PersistedStore
     template_id: string;
     filter_id: StoredSession["filterId"];
     capture_count: StoredSession["captureCount"];
+    countdown_seconds: number;
     status: StoredSession["status"];
     created_at: string;
     updated_at: string;
@@ -210,6 +215,7 @@ export function readSnapshotFromDatabase(database: DatabaseSync): PersistedStore
     templateId: row.template_id,
     filterId: row.filter_id,
     captureCount: row.capture_count === 3 ? (3 as const) : (6 as const),
+    countdownSeconds: ([0, 3, 5, 10].includes(row.countdown_seconds) ? row.countdown_seconds : 3) as StoredSession["countdownSeconds"],
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -244,12 +250,13 @@ export function writeSettingsToDatabase(database: DatabaseSync, settings: Persis
 
 export function upsertSessionInDatabase(database: DatabaseSync, session: StoredSession): StoredSession {
   const saveSession = database.prepare(`
-    INSERT INTO sessions (id, template_id, filter_id, capture_count, status, created_at, updated_at, recipient_email, drive_url, final_strip_path, final_strip_data_url, final_gif_path, final_gif_data_url, session_dir)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO sessions (id, template_id, filter_id, capture_count, countdown_seconds, status, created_at, updated_at, recipient_email, drive_url, final_strip_path, final_strip_data_url, final_gif_path, final_gif_data_url, session_dir)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       template_id = excluded.template_id,
       filter_id = excluded.filter_id,
       capture_count = excluded.capture_count,
+      countdown_seconds = excluded.countdown_seconds,
       status = excluded.status,
       created_at = excluded.created_at,
       updated_at = excluded.updated_at,
@@ -282,6 +289,7 @@ export function upsertSessionInDatabase(database: DatabaseSync, session: StoredS
       session.templateId,
       session.filterId,
       session.captureCount,
+      session.countdownSeconds,
       session.status,
       session.createdAt,
       session.updatedAt,

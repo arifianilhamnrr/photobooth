@@ -372,6 +372,52 @@ button {
   gap: 12px;
 }
 
+.countdown-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 190px));
+  place-content: center;
+  gap: 14px;
+}
+
+.countdown-option {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 240px;
+  padding: 20px;
+  border: 1px solid #3a3f43;
+  border-radius: 20px;
+  background: #141719;
+  color: #f2f1ed;
+}
+
+.countdown-option.selected {
+  border: 3px solid var(--accent-color);
+  padding: 18px;
+}
+
+.countdown-option small {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  color: #828a8f;
+}
+
+.countdown-option strong {
+  font-size: 56px;
+  line-height: 1;
+  letter-spacing: -.06em;
+}
+
+.countdown-option:first-child strong {
+  font-size: 30px;
+}
+
+.countdown-option span {
+  color: #aeb4b7;
+  font-size: 14px;
+}
+
 .template-card {
   display: grid;
   grid-template-columns: 180px 1fr;
@@ -472,7 +518,20 @@ button {
 }
 
 .shot-review-panel {
+  position: relative;
   justify-content: center;
+}
+
+.shot-frame-preview {
+  align-self: start;
+  display: grid;
+  place-items: center;
+  width: fit-content;
+  margin: 16px 0 4px;
+  padding: 7px;
+  border: 1px solid #34383c;
+  border-radius: 14px;
+  background: #111315;
 }
 
 .shot-review-progress {
@@ -770,6 +829,17 @@ button {
   border: 1px solid #34383c;
   border-radius: 14px;
   background: #111315;
+}
+
+.review-actions-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.review-actions-row button {
+  padding-inline: 12px;
+  font-size: 14px;
 }
 
 .review-filter-block > span {

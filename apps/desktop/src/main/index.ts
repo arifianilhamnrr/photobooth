@@ -112,6 +112,7 @@ interface CreateSessionInput {
   templateId: string;
   filterId: FilterId;
   captureCount: 3 | 6;
+  countdownSeconds: StoredSession["countdownSeconds"];
 }
 
 interface CaptureShotInput {
@@ -139,6 +140,7 @@ interface UpdateSessionConfigInput {
   templateId: string;
   filterId: FilterId;
   captureCount?: 3 | 6;
+  countdownSeconds?: StoredSession["countdownSeconds"];
 }
 
 interface ApplySessionFilterInput {
@@ -505,6 +507,7 @@ app.whenReady().then(async () => {
       templateId: input.templateId,
       filterId: input.filterId,
       captureCount: input.captureCount,
+      countdownSeconds: input.countdownSeconds,
       status: "draft",
       createdAt: now,
       updatedAt: now,
@@ -588,6 +591,7 @@ app.whenReady().then(async () => {
       templateId: input.templateId,
       filterId: input.filterId,
       captureCount: input.captureCount ?? session.captureCount,
+      countdownSeconds: input.countdownSeconds ?? session.countdownSeconds,
       finalStripPath: undefined,
       finalStripDataUrl: undefined,
       finalGifPath: undefined,

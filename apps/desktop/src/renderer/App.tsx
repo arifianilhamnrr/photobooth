@@ -24,7 +24,7 @@ import {
   type TemplateSlot
 } from "@photobooth/domain";
 
-type Step = "welcome" | "template" | "photo-count" | "ready" | "pose-ready" | "capture" | "shot-review" | "review" | "saving" | "result";
+type Step = "welcome" | "template" | "photo-count" | "countdown-select" | "ready" | "pose-ready" | "capture" | "shot-review" | "review" | "saving" | "result";
 
 const CAPTURE_INTERVAL_MS = 900;
 
@@ -50,6 +50,8 @@ export default function App() {
   const [step, setStep] = useState<Step>("welcome");
   const [templateId, setTemplateId] = useState(templates[0].id);
   const [selectedCaptureCount, setSelectedCaptureCount] = useState<3 | 6>(6);
+  const [selectedCountdownSeconds, setSelectedCountdownSeconds] = useState<0 | 3 | 5 | 10>(3);
+  const [changingFrame, setChangingFrame] = useState(false);
   const [filterId, setFilterId] = useState<FilterId>("original");
   const [session, setSession] = useState<StoredSession | null>(null);
   const [countdown, setCountdown] = useState(3);
@@ -138,6 +140,9 @@ export default function App() {
     if (command === "capture-count:3" && step === "photo-count") setSelectedCaptureCount(3);
     if (command === "capture-count:6" && step === "photo-count") setSelectedCaptureCount(6);
     if (command === "confirm-count" && step === "photo-count") void confirmCaptureCount();
+    if (command.startsWith("countdown-seconds:") && step === "countdown-select") setSelectedCountdownSeconds(Number(command.slice("countdown-seconds:".length)) as 0 | 3 | 5 | 10);
+    if (command === "confirm-countdown" && step === "countdown-select") void confirmCountdownSelection();
+    if (command === "change-frame" && step === "review") changeFrameFromReview();
     if (command === "cancel-session" && step !== "welcome") resetToWelcome();
     if (command === "start" && step === "ready") beginCapture();
     if (command === "start" && step === "pose-ready") startPoseCountdown();
@@ -152,6 +157,7 @@ export default function App() {
       welcome: "idle",
       template: "template",
       "photo-count": "photo-count",
+      "countdown-select": "countdown-select",
       ready: "ready",
       "pose-ready": "pose-ready",
       capture: countdown > 1 ? "countdown" : "capturing",
@@ -173,15 +179,16 @@ export default function App() {
       filterRendering,
       templateId,
       captureCount,
+      countdownSeconds: session?.countdownSeconds ?? selectedCountdownSeconds,
       publicUrl: session?.driveUrl,
       stripPath: session?.finalStripPath,
       gifPath: session?.finalGifPath
     });
-  }, [cameraReady, captureCount, captureIndex, countdown, filterId, filterRendering, lastCapturedIndex, replaceIndex, selectedCameraSourceId, session, step, templateId]);
+  }, [cameraReady, captureCount, captureIndex, countdown, filterId, filterRendering, lastCapturedIndex, replaceIndex, selectedCameraSourceId, selectedCountdownSeconds, session, step, templateId]);
 
   useEffect(() => {
     if (!remoteStatus.enabled) return;
-    if (step === "welcome" || step === "template" || step === "photo-count") {
+    if (step === "welcome" || step === "template" || step === "photo-count" || step === "countdown-select") {
       void window.photobooth.remote.updatePreview(undefined);
       return;
     }
@@ -205,6 +212,53 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const handleKeyboard = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (operatorOpen || target?.isContentEditable || ["INPUT", "SELECT", "TEXTAREA"].includes(target?.tagName ?? "")) return;
+      const key = event.key;
+      const confirm = key === "Enter" || key === " ";
+      if (confirm) event.preventDefault();
+
+      if (step === "welcome" && confirm) void startSession();
+      else if (step === "template") {
+        const frameIndex = Number(key) - 1;
+        if (frameIndex >= 0 && frameIndex < templates.length) setTemplateId(templates[frameIndex].id);
+        else if (confirm) void confirmFrameSelection();
+        else if (key === "Escape") {
+          if (changingFrame) { setChangingFrame(false); setStep("review"); }
+          else cancelSession();
+        }
+      } else if (step === "photo-count") {
+        if (key === "1") setSelectedCaptureCount(3);
+        else if (key === "2") setSelectedCaptureCount(6);
+        else if (confirm) void confirmCaptureCount();
+        else if (key === "Escape") setStep("template");
+      } else if (step === "countdown-select") {
+        const options = [0, 3, 5, 10] as const;
+        const option = options[Number(key) - 1];
+        if (option !== undefined) setSelectedCountdownSeconds(option);
+        else if (confirm) void confirmCountdownSelection();
+        else if (key === "Escape") setStep("photo-count");
+      } else if (step === "ready") {
+        if (confirm) beginCapture();
+        else if (key === "Escape") setStep("countdown-select");
+      } else if (step === "pose-ready") {
+        if (confirm) startPoseCountdown();
+        else if (key === "Escape" && replaceIndex !== null) { setReplaceIndex(null); setStep("review"); }
+      } else if (step === "shot-review") {
+        if (key === "1" || key.toLowerCase() === "u") rejectCapturedShot();
+        else if (key === "2" || confirm) acceptCapturedShot();
+        else if (key === "Escape") rejectCapturedShot();
+      } else if (step === "review") {
+        if (key.toLowerCase() === "f") changeFrameFromReview();
+        else if (key === "Escape") changeFrameFromReview();
+      } else if (step === "result" && (confirm || key === "Escape")) resetToWelcome();
+    };
+    window.addEventListener("keydown", handleKeyboard);
+    return () => window.removeEventListener("keydown", handleKeyboard);
+  }, [changingFrame, operatorOpen, replaceIndex, step, templateId, selectedCaptureCount, selectedCountdownSeconds, session, cameraReady, lastCapturedIndex, countdown]);
+
+  useEffect(() => {
     const handleDeviceChange = () => {
       void refreshBrowserCameraSources();
     };
@@ -218,7 +272,7 @@ export default function App() {
     if (!usesNativeCamera && !cameraReady) return;
 
     const soundKey = `${captureCycleRef.current}:${replaceIndex ?? captureIndex}:${countdown}`;
-    if (lastCountdownSoundRef.current !== soundKey) {
+    if (countdown > 0 && lastCountdownSoundRef.current !== soundKey) {
       lastCountdownSoundRef.current = soundKey;
       playCountdownSound(countdown);
     }
@@ -265,7 +319,7 @@ export default function App() {
           setCountdown(settings.countdownSeconds);
           setStep("ready");
         });
-    }, CAPTURE_INTERVAL_MS);
+    }, countdown === 0 ? 80 : CAPTURE_INTERVAL_MS);
 
     return () => clearTimeout(timer);
   }, [cameraReady, captureCount, captureIndex, countdown, replaceIndex, selectedCameraSourceId, session, settings.countdownSeconds, step]);
@@ -452,10 +506,14 @@ export default function App() {
     const defaultTemplateId = templates.find((item) => item.id === "frame-3")?.id ?? templates[0].id;
     const defaultFilterId: FilterId = "original";
     const defaultCaptureCount: 3 | 6 = 6;
+    const defaultCountdownSeconds: 0 | 3 | 5 | 10 = [0, 3, 5, 10].includes(settings.countdownSeconds)
+      ? settings.countdownSeconds as 0 | 3 | 5 | 10
+      : 3;
     setTemplateId(defaultTemplateId);
     setFilterId(defaultFilterId);
     setSelectedCaptureCount(defaultCaptureCount);
-    const nextSession = await window.photobooth.sessions.create({ templateId: defaultTemplateId, filterId: defaultFilterId, captureCount: defaultCaptureCount });
+    setSelectedCountdownSeconds(defaultCountdownSeconds);
+    const nextSession = await window.photobooth.sessions.create({ templateId: defaultTemplateId, filterId: defaultFilterId, captureCount: defaultCaptureCount, countdownSeconds: defaultCountdownSeconds });
     setSession(nextSession);
     updateSessionCollection(nextSession);
     setCaptureIndex(0);
@@ -474,20 +532,42 @@ export default function App() {
 
   async function confirmFrameSelection() {
     if (!session) return;
-    const updated = await window.photobooth.sessions.updateConfig({ sessionId: session.id, templateId, filterId, captureCount: selectedCaptureCount });
+    const updated = await window.photobooth.sessions.updateConfig({ sessionId: session.id, templateId, filterId, captureCount: selectedCaptureCount, countdownSeconds: selectedCountdownSeconds });
     setSession(updated);
     updateSessionCollection(updated);
+    if (changingFrame) {
+      setChangingFrame(false);
+      setQueueStatus(`${getTemplate(templateId).name} diterapkan ke foto yang sudah ada.`);
+      setStep("review");
+      return;
+    }
     setQueueStatus(`${getTemplate(templateId).name} dipilih. Tentukan jumlah foto.`);
     setStep("photo-count");
   }
 
   async function confirmCaptureCount() {
     if (!session) return;
-    const updated = await window.photobooth.sessions.updateConfig({ sessionId: session.id, templateId, filterId, captureCount: selectedCaptureCount });
+    const updated = await window.photobooth.sessions.updateConfig({ sessionId: session.id, templateId, filterId, captureCount: selectedCaptureCount, countdownSeconds: selectedCountdownSeconds });
     setSession(updated);
     updateSessionCollection(updated);
     setQueueStatus(`${selectedCaptureCount} foto siap diambil.`);
+    setStep("countdown-select");
+  }
+
+  async function confirmCountdownSelection() {
+    if (!session) return;
+    const updated = await window.photobooth.sessions.updateConfig({ sessionId: session.id, templateId, filterId, captureCount: selectedCaptureCount, countdownSeconds: selectedCountdownSeconds });
+    setSession(updated);
+    updateSessionCollection(updated);
+    setCountdown(selectedCountdownSeconds);
+    setQueueStatus(selectedCountdownSeconds === 0 ? "Tanpa countdown." : `Countdown ${selectedCountdownSeconds} detik.`);
     setStep("ready");
+  }
+
+  function changeFrameFromReview() {
+    setChangingFrame(true);
+    setQueueStatus("Pilih frame baru. Foto yang sudah diambil tetap aman.");
+    setStep("template");
   }
 
   function cancelSession() {
@@ -504,7 +584,7 @@ export default function App() {
     unlockAudio();
     captureCycleRef.current += 1;
     setCaptureIndex(0);
-    setCountdown(settings.countdownSeconds);
+    setCountdown(session.countdownSeconds);
     setQueueStatus(`Ambil ${captureCount} foto untuk template ${template.name}.`);
     setStep("capture");
   }
@@ -513,7 +593,7 @@ export default function App() {
     unlockAudio();
     setReplaceIndex(shotIndex);
     setRetakeCountRecorded(false);
-    setCountdown(settings.countdownSeconds);
+    setCountdown(session?.countdownSeconds ?? selectedCountdownSeconds);
     setQueueStatus(`Siap mengulang foto ${shotIndex + 1}.`);
     setStep("pose-ready");
   }
@@ -540,7 +620,7 @@ export default function App() {
     unlockAudio();
     setCaptureIndex(nextIndex);
     setLastCapturedIndex(null);
-    setCountdown(settings.countdownSeconds);
+    setCountdown(session?.countdownSeconds ?? selectedCountdownSeconds);
     setQueueStatus(`Atur pose untuk foto ${nextIndex + 1}, lalu tekan Mulai.`);
     setStep("pose-ready");
   }
@@ -550,7 +630,7 @@ export default function App() {
     unlockAudio();
     setCaptureIndex(targetIndex);
     setLastCapturedIndex(null);
-    setCountdown(settings.countdownSeconds);
+    setCountdown(session?.countdownSeconds ?? selectedCountdownSeconds);
     setQueueStatus(`Foto ${targetIndex + 1} dibatalkan. Siapkan pose lalu tekan Mulai.`);
     setStep("pose-ready");
   }
@@ -869,7 +949,7 @@ export default function App() {
               <p className="eyebrow">PILIH FRAME</p>
               <h2>Pilih frame yang paling cocok.</h2>
             </div>
-            <p className="body small">Semua frame memakai 6 foto. Pilih satu dulu, lalu lanjut ke kamera.</p>
+            <p className="body small">Pilih frame dulu. Jumlah foto dan countdown ditentukan pada langkah berikutnya.</p>
           </div>
           <div className="template-grid compact-template-grid">
             {templates.map((item) => {
@@ -928,6 +1008,29 @@ export default function App() {
         </section>
       )}
 
+      {step === "countdown-select" && session && (
+        <section className="screen-card photo-count-screen">
+          <div className="photo-count-copy">
+            <p className="eyebrow">COUNTDOWN</p>
+            <h2>Pilih waktu bersiap.</h2>
+            <p className="body small">Tekan angka 1–4 untuk memilih, Enter atau Space untuk lanjut, dan Esc untuk kembali.</p>
+          </div>
+          <div className="countdown-options">
+            {([0, 3, 5, 10] as const).map((seconds, index) => (
+              <button key={seconds} className={`countdown-option${selectedCountdownSeconds === seconds ? " selected" : ""}`} onClick={() => setSelectedCountdownSeconds(seconds)}>
+                <small>{index + 1}</small>
+                <strong>{seconds === 0 ? "Tanpa" : seconds}</strong>
+                <span>{seconds === 0 ? "langsung jepret" : "detik"}</span>
+              </button>
+            ))}
+          </div>
+          <div className="photo-count-actions">
+            <button className="secondary-button" onClick={() => setStep("photo-count")}>Kembali</button>
+            <button className="primary-button" onClick={() => void confirmCountdownSelection()}>Lanjut ke kamera</button>
+          </div>
+        </section>
+      )}
+
       {step === "ready" && session && (
         <section className="ready-layout screen-card">
           <div className="camera-stage">
@@ -982,7 +1085,7 @@ export default function App() {
               nativePreviewUrl={nativePreviewUrl}
             />
             <div className="countdown-ring">
-              <span>{cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? countdown : "·"}</span>
+              <span>{cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? (countdown === 0 ? "•" : countdown) : "·"}</span>
               <small>{cameraReady || selectedCameraSourceId.startsWith("gphoto:") ? (replaceIndex === null ? `Foto ${captureIndex + 1} dari ${captureCount}` : `Retake foto ${replaceIndex + 1}`) : "Menunggu kamera"}</small>
             </div>
             <ShotRail shots={shots} activeIndex={replaceIndex ?? captureIndex} totalCount={captureCount} />
@@ -1046,6 +1149,9 @@ export default function App() {
             <p className="eyebrow">CEK FOTO {lastCapturedIndex + 1}</p>
             <h2>Mau pakai foto ini?</h2>
             <p className="body small">Kalau sudah pas, lanjut ke pose berikutnya. Kalau belum, batalkan dan ambil ulang foto yang sama.</p>
+            <div className="shot-frame-preview">
+              <StripShowcase template={template} shots={shots} filterCss={filter.cssFilter} compact />
+            </div>
             <div className="shot-review-progress">
               {Array.from({ length: captureCount }, (_, index) => (
                 <span key={index} className={index <= lastCapturedIndex ? "filled" : ""}>{index + 1}</span>
@@ -1116,7 +1222,8 @@ export default function App() {
                 <span>Lanjutkan untuk upload dan membuat QR hasil.</span>
               </div>
               {emailError && <p className="error-text">{emailError}</p>}
-              <div className="dual-actions">
+              <div className="review-actions-row">
+                <button className="secondary-button" disabled={filterRendering} onClick={changeFrameFromReview}>Ganti frame</button>
                 <button className="secondary-button" disabled={filterRendering || Boolean(session.finalStripPath)} onClick={() => void prepareLocalResults()}>{session.finalStripPath ? "Hasil lokal siap" : "Buat hasil offline"}</button>
                 <button className="primary-button" disabled={filterRendering} onClick={() => void finishReview()}>Upload hasil</button>
               </div>

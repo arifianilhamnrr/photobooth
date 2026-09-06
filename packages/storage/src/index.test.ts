@@ -25,6 +25,7 @@ describe("sync queue", () => {
       templateId: "frame-3",
       filterId: "original",
       captureCount: 3,
+      countdownSeconds: 3,
       status: "sync_pending",
       createdAt: now,
       updatedAt: now,
